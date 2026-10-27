@@ -2,6 +2,7 @@
 
 import csv
 import json
+import math
 from pathlib import Path
 import shutil
 import subprocess
@@ -12,8 +13,9 @@ import cv2
 
 
 ALLOWED_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv"}
-MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+MAX_UPLOAD_BYTES = 500 * 1024 * 1024
 MAX_FRAMES = 450
+MAX_EXTENDED_FRAMES = 900
 MAX_FRAME_PIXELS = 1280 * 720
 
 
@@ -23,7 +25,7 @@ def create_job(uploaded, jobs_root="output/dashboard_jobs"):
     if suffix not in ALLOWED_EXTENSIONS:
         raise ValueError("Chỉ nhận video MP4, MOV, AVI hoặc MKV.")
     if uploaded.size <= 0 or uploaded.size > MAX_UPLOAD_BYTES:
-        raise ValueError("Video phải có dung lượng từ 1 byte đến 100 MB.")
+        raise ValueError(f"Video tải lên phải có dung lượng từ 1 byte đến {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.")
     job = Path(jobs_root) / uuid.uuid4().hex
     job.mkdir(parents=True, exist_ok=False)
     input_path = job / f"input{suffix}"
@@ -35,7 +37,19 @@ def create_job(uploaded, jobs_root="output/dashboard_jobs"):
     return job, input_path
 
 
-def probe_video(path, *, enforce_limits=True):
+def create_job_from_local_file(path, jobs_root="output/dashboard_jobs"):
+    """Use a same-machine video without loading its full contents into Streamlit."""
+    source = Path(path).expanduser()
+    if not source.is_file() or source.stat().st_size <= 0:
+        raise ValueError("Đường dẫn video trên máy không tồn tại hoặc tệp rỗng.")
+    if source.suffix.lower() not in ALLOWED_EXTENSIONS:
+        raise ValueError("Chỉ nhận video MP4, MOV, AVI hoặc MKV.")
+    job = Path(jobs_root) / uuid.uuid4().hex
+    job.mkdir(parents=True, exist_ok=False)
+    return job, source.resolve()
+
+
+def probe_video(path, *, enforce_limits=True, max_frames=None, max_frame_pixels=None):
     """Validate a small clip before a memory-heavy full pipeline run."""
     capture = cv2.VideoCapture(str(path))
     try:
@@ -48,44 +62,58 @@ def probe_video(path, *, enforce_limits=True):
         ok, _ = capture.read()
         if not ok or fps <= 0 or frames <= 0 or width <= 0 or height <= 0:
             raise ValueError("Video thiếu frame hoặc metadata FPS/kích thước hợp lệ.")
-        if enforce_limits and frames > MAX_FRAMES:
-            raise ValueError(f"Video tối đa {MAX_FRAMES} frame; hãy cắt clip ngắn hơn.")
-        if enforce_limits and width * height > MAX_FRAME_PIXELS:
-            raise ValueError("Video tối đa 1280×720 pixel; hãy giảm độ phân giải.")
+        frame_limit = MAX_FRAMES if max_frames is None else max_frames
+        pixel_limit = MAX_FRAME_PIXELS if max_frame_pixels is None else max_frame_pixels
+        if enforce_limits and frames > frame_limit:
+            raise ValueError(f"Đoạn phân tích tối đa {frame_limit} frame.")
+        if enforce_limits and width * height > pixel_limit:
+            raise ValueError("Độ phân giải đoạn phân tích vượt ngân sách RAM.")
         return {"fps": fps, "frames": frames, "width": width, "height": height,
                 "duration_seconds": frames / fps}
     finally:
         capture.release()
 
 
-def prepare_analysis_clip(source, job, details, start_seconds=0.0):
-    """Select a bounded, real-time segment while preserving source FPS."""
+def prepare_analysis_clip(source, job, details, start_seconds=0.0, max_frames=None):
+    """Bound total decoded pixels while preserving source FPS and time order."""
     from imageio_ffmpeg import get_ffmpeg_exe
 
     fps = details["fps"]
     duration = details["duration_seconds"]
+    max_frames = MAX_FRAMES if max_frames is None else max_frames
+    if not 1 <= max_frames <= MAX_EXTENDED_FRAMES:
+        raise ValueError(f"Chỉ hỗ trợ từ 1 đến {MAX_EXTENDED_FRAMES} frame mỗi lần.")
     if not 0 <= start_seconds < duration:
         raise ValueError("Thời điểm bắt đầu phải nằm trong thời lượng video.")
-    needs_clip = (start_seconds > 0 or details["frames"] > MAX_FRAMES
-                  or details["width"] * details["height"] > MAX_FRAME_PIXELS)
+    remaining = max(1, math.ceil((duration - start_seconds) * fps))
+    selected_frames = min(max_frames, remaining)
+    pixel_budget = min(MAX_FRAME_PIXELS,
+                       (MAX_FRAMES * MAX_FRAME_PIXELS) // selected_frames)
+    needs_clip = (start_seconds > 0 or details["frames"] > selected_frames
+                  or details["width"] > 1280 or details["height"] > 720
+                  or details["width"] * details["height"] > pixel_budget)
     if not needs_clip:
         return Path(source), None
 
-    scale = min(1.0, 1280 / details["width"], 720 / details["height"])
+    scale = min(1.0, 1280 / details["width"], 720 / details["height"],
+                math.sqrt(pixel_budget / (details["width"] * details["height"])))
     width = max(2, int(details["width"] * scale) // 2 * 2)
     height = max(2, int(details["height"] * scale) // 2 * 2)
     destination = Path(job) / "analysis_input.mp4"
     command = [get_ffmpeg_exe(), "-y", "-hide_banner", "-loglevel", "error",
-               "-i", str(source), "-ss", f"{start_seconds:.6f}", "-an",
-               "-frames:v", str(MAX_FRAMES), "-vf", f"scale={width}:{height}",
+               "-ss", f"{start_seconds:.6f}", "-i", str(source), "-an",
+               "-frames:v", str(selected_frames), "-vf", f"scale={width}:{height}",
                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(destination)]
     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    processed = probe_video(destination)
+    processed = probe_video(destination, max_frames=max_frames,
+                            max_frame_pixels=pixel_budget)
     clip_info = {
         "source_frames": details["frames"],
         "source_width": details["width"],
         "source_height": details["height"],
+        "requested_max_frames": max_frames,
+        "pixel_budget_per_frame": pixel_budget,
         "start_seconds": start_seconds,
         "end_seconds": start_seconds + processed["duration_seconds"],
         "analyzed_frames": processed["frames"],

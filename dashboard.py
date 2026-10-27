@@ -6,8 +6,9 @@ from pathlib import Path
 import streamlit as st
 
 from src.dashboard_io import (
-    MAX_FRAMES, MAX_UPLOAD_BYTES, analysis_files, create_academic_zip,
-    create_job, create_report_zip, prepare_analysis_clip, probe_video, read_csv, run_job,
+    MAX_EXTENDED_FRAMES, MAX_FRAMES, MAX_UPLOAD_BYTES, analysis_files, create_academic_zip,
+    create_job, create_job_from_local_file, create_report_zip, prepare_analysis_clip,
+    probe_video, read_csv, run_job,
 )
 
 
@@ -79,10 +80,10 @@ def _show_job(job):
 
 
 def _video_tab():
-    st.write("Tải một clip ngắn để chạy YOLO, ByteTrack, chia đội và xuất báo cáo trên máy này.")
-    st.caption(f"Tệp tải lên tối đa {MAX_UPLOAD_BYTES // (1024 * 1024)} MB. "
-               f"Dashboard tự lấy tối đa {MAX_FRAMES} frame liên tiếp và thu về tối đa 1280×720; "
-               "báo cáo chỉ tính cho đoạn đã phân tích.")
+    st.write("Chọn video để chạy YOLO, ByteTrack, chia đội và xuất báo cáo trên máy này.")
+    st.caption(f"Upload tối đa {MAX_UPLOAD_BYTES // (1024 * 1024)} MB; "
+               "video lớn hơn có thể đọc từ đường dẫn trên chính máy chạy dashboard. "
+               "Báo cáo chỉ tính cho đoạn đã chọn.")
     available = {label: path for label, path in CHECKPOINTS.items() if path.is_file()}
     if not available:
         st.error("Chưa tìm thấy checkpoint. Hãy tải best.pt từ kết quả Modal vào runs/modal/ hoặc đặt yolo26x.pt tại thư mục gốc.")
@@ -101,23 +102,46 @@ def _video_tab():
         st.error(torch_error)
         st.caption("Nếu Windows chặn torch_python.dll trong venv, hãy thoát venv rồi chạy "
                    "dashboard bằng Python hệ thống đã cài PyTorch.")
-    uploaded = st.file_uploader("Video bóng đá", type=["mp4", "mov", "avi", "mkv"],
-                                max_upload_size=100)
+    input_mode = st.radio("Nguồn video", ["Tải lên từ trình duyệt", "Đường dẫn trên máy này"],
+                          horizontal=True)
+    uploaded = None
+    local_path = ""
+    if input_mode == "Tải lên từ trình duyệt":
+        uploaded = st.file_uploader("Video bóng đá", type=["mp4", "mov", "avi", "mkv"],
+                                    max_upload_size=MAX_UPLOAD_BYTES // (1024 * 1024))
+    else:
+        local_path = st.text_input("Đường dẫn video trên máy chạy dashboard",
+                                   placeholder=r"D:\Downloads\video.mp4")
+        st.caption("Chỉ dùng khi video nằm trên chính máy chạy Streamlit; tệp nguồn không bị sao chép.")
+    local_source = local_path.strip().strip('"')
+    max_frames = st.selectbox("Độ dài đoạn phân tích",
+                              [MAX_FRAMES, MAX_EXTENDED_FRAMES],
+                              format_func=lambda count: (f"{count} frame - tối đa 720p"
+                                                         if count == MAX_FRAMES else
+                                                         f"{count} frame - tự giảm độ phân giải"))
+    st.caption("Chế độ 900 frame dùng độ phân giải thấp hơn để giữ lượng ảnh trong RAM gần chế độ 450 frame. "
+               "Các bước theo dõi và tạo báo cáo có thể mất lâu hơn.")
     start_seconds = st.number_input("Bắt đầu phân tích từ giây thứ", min_value=0.0,
                                     value=0.0, step=1.0)
     technical_only = st.checkbox("Clip ghép từ ảnh hoặc FPS giả định - chỉ kiểm tra kỹ thuật")
     if st.button("Phân tích video", type="primary",
-                 disabled=uploaded is None or torch_error is not None):
+                 disabled=(uploaded is None and not local_source) or torch_error is not None):
         try:
             status = ("YOLO đang chạy trên GPU; các bước còn lại dùng CPU. "
                       "Đang xử lý video và tạo báo cáo..." if device == "0" else
                       "Đang xử lý video trên CPU và tạo báo cáo; có thể mất vài phút...")
             with st.spinner(status):
-                job, input_path = create_job(uploaded, ROOT / "output/dashboard_jobs")
+                if uploaded is not None:
+                    job, input_path = create_job(uploaded, ROOT / "output/dashboard_jobs")
+                else:
+                    job, input_path = create_job_from_local_file(
+                        local_source, ROOT / "output/dashboard_jobs")
+                source_name = input_path.name if uploaded is None else uploaded.name
                 original = probe_video(input_path, enforce_limits=False)
                 analysis_input, clip_info = prepare_analysis_clip(
-                    input_path, job, original, start_seconds=start_seconds)
-                details = probe_video(analysis_input)
+                    input_path, job, original, start_seconds=start_seconds,
+                    max_frames=max_frames)
+                details = probe_video(analysis_input, enforce_limits=False)
                 if clip_info:
                     st.info(f"Chỉ phân tích đoạn {clip_info['start_seconds']:.1f}–"
                             f"{clip_info['end_seconds']:.1f} giây; "
@@ -131,14 +155,16 @@ def _video_tab():
                 st.write(f"Đầu vào: {details['frames']} frame, {details['fps']:.2f} FPS, "
                          f"{details['width']}×{details['height']} pixel.")
                 run_job(analysis_input, job, available[checkpoint_name], device,
-                        source_name=uploaded.name, clip_info=clip_info)
+                        source_name=source_name, clip_info=clip_info)
                 st.session_state["dashboard_job"] = str(job)
-                st.session_state["dashboard_source"] = uploaded.name
+                st.session_state["dashboard_source"] = source_name
             st.success("Đã hoàn thành phân tích.")
         except Exception as exc:
             st.error(f"Không xử lý được video: {exc}")
     job = st.session_state.get("dashboard_job")
-    if job and uploaded is not None and uploaded.name != st.session_state.get("dashboard_source"):
+    current_name = (uploaded.name if uploaded is not None else Path(local_source).name
+                    if local_source else None)
+    if job and current_name and current_name != st.session_state.get("dashboard_source"):
         st.info("Kết quả đang lưu thuộc video trước. Hãy bấm Phân tích video để tạo báo cáo cho tệp mới.")
     elif job:
         st.divider()

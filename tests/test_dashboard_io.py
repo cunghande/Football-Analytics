@@ -7,7 +7,8 @@ import numpy as np
 import pytest
 
 from src.dashboard_io import (
-    analysis_files, create_job, create_report_zip, prepare_analysis_clip, probe_video,
+    analysis_files, create_job, create_job_from_local_file, create_report_zip,
+    prepare_analysis_clip, probe_video,
     transcode_for_browser,
 )
 
@@ -26,6 +27,19 @@ def test_uploaded_name_never_controls_destination(tmp_path):
     assert path.read_bytes() == b"test"
     with pytest.raises(ValueError, match="MP4"):
         create_job(FakeUpload(b"test", "evil.exe"), tmp_path / "jobs")
+
+
+def test_local_video_avoids_upload_copy(tmp_path, monkeypatch):
+    import src.dashboard_io as dashboard_io
+
+    monkeypatch.setattr(dashboard_io, "MAX_UPLOAD_BYTES", 2)
+    source = tmp_path / "local.mp4"
+    source.write_bytes(b"1234")
+    with pytest.raises(ValueError, match="dung lượng"):
+        create_job(FakeUpload(b"1234", "local.mp4"), tmp_path / "jobs")
+    job, selected = create_job_from_local_file(source, tmp_path / "jobs")
+    assert selected == source.resolve()
+    assert not list(job.iterdir())
 
 
 def test_probe_and_browser_transcode(tmp_path):
@@ -63,6 +77,30 @@ def test_long_video_selects_real_segment(tmp_path, monkeypatch):
     assert analyzed["fps"] == pytest.approx(10)
     assert clip["start_seconds"] == 0.5
     assert clip["end_seconds"] == pytest.approx(1.5)
+    capture = cv2.VideoCapture(str(selected))
+    ok, first = capture.read()
+    capture.release()
+    assert ok and 35 < float(first.mean()) < 65
+
+
+def test_extended_segment_reduces_pixels_per_frame(tmp_path, monkeypatch):
+    import src.dashboard_io as dashboard_io
+
+    monkeypatch.setattr(dashboard_io, "MAX_FRAMES", 10)
+    monkeypatch.setattr(dashboard_io, "MAX_FRAME_PIXELS", 160 * 90)
+    source = tmp_path / "long.mp4"
+    writer = cv2.VideoWriter(str(source), cv2.VideoWriter_fourcc(*"mp4v"),
+                             10.0, (160, 90))
+    assert writer.isOpened()
+    for index in range(20):
+        writer.write(np.full((90, 160, 3), index * 10, dtype=np.uint8))
+    writer.release()
+    original = probe_video(source, enforce_limits=False)
+    selected, clip = prepare_analysis_clip(source, tmp_path, original, max_frames=20)
+    analyzed = probe_video(selected, max_frames=20, max_frame_pixels=160 * 90 // 2)
+    assert analyzed["frames"] == 20
+    assert analyzed["width"] * analyzed["height"] <= 160 * 90 // 2
+    assert clip["analyzed_frames"] == 20
 
 
 def test_report_zip_excludes_videos(tmp_path):
