@@ -1,6 +1,8 @@
-# Football Analytics Pipeline
+# Football Analytics
 
-[![Tests](https://github.com/alina-letzien/football-analytics/actions/workflows/tests.yml/badge.svg)](https://github.com/alina-letzien/football-analytics/actions/workflows/tests.yml)
+**Bài tập lớn phát triển từ [alina-letzien/football-analytics](https://github.com/alina-letzien/football-analytics) theo giấy phép MIT.** Mã gốc cung cấp pipeline YOLO, ByteTrack, phân cụm màu áo, gán bóng và ước tính chuyển động. Phần phát triển của bài làm gồm kiểm tra và chia dataset bốn lớp, fine-tune YOLO26x trên Modal, so sánh ba thiết lập, cải tiến chia đội, xuất CSV, heatmap/minimap, dashboard Streamlit và ứng viên đường chuyền. Nguồn ảnh là [FSDM detection-player v4](https://universe.roboflow.com/fsdm-olss1/detection-player/dataset/4), CC BY 4.0.
+
+**Báo cáo có thể nộp:** [bản Word](report/BAO_CAO_HOAN_CHINH.docx), [bản Markdown](report/BAO_CAO_HOAN_CHINH.md), [hình và dữ liệu thực nghiệm](report/), [hướng dẫn dataset](docs/DATASET_GUIDE.md). Các bảng và hình tách kết quả đo thực từ hình minh họa kỹ thuật. Chưa có video demo độc lập nên chưa có phép đo độ chính xác đầu cuối cho tracking, gán bóng, quãng đường và đường chuyền.
 
 Computer vision football analysis pipeline with YOLO, ByteTrack, OpenCV, and Python.
 
@@ -192,50 +194,39 @@ If logic changed, delete files in `stubs/` and rerun to recompute cached data.
 
 ## Training
 
-The pipeline works out of the box with the base `yolo26x.pt` from Ultralytics — a generic model that detects `"person"`, `"sports ball"`, and similar classes. Training your own model means fine-tuning on a football-specific dataset where objects are labeled as `player`, `goalkeeper`, `referee`, and `ball`. This improves detection accuracy, especially for distinguishing referees from players and the ball from the background.
+The experiment uses [FSDM `detection-player` v4](https://universe.roboflow.com/fsdm-olss1/detection-player/dataset/4). The prepared YOLO dataset is stored locally in `datasets/football_4class_clip_split/` and is excluded from Git. See the [dataset guide](docs/DATASET_GUIDE.md) for download, audit, split and license details. The COCO pretrained `yolo26x.pt` only maps `person` and `sports ball` into two of the four target classes; the fine-tuned checkpoints predict all four.
 
-You only need to do this if the base model's detection quality is not good enough for your use case.
+Run the two training settings on Modal from PowerShell. The named runs already exist in the original experiment, so **choose fresh run names** to repeat them:
 
-If you do want to train:
-
-1. Export a Roboflow football dataset in Ultralytics/YOLO format and drop it into the `datasets/` folder.
-2. Open a terminal and run the following command from the project root:
-
-```bash
-./venv/bin/python train.py \
-  --data datasets/football-players-detection.v2i.yolo26/data.yaml \
-  --model yolo26x.pt \
-  --epochs 100 \
-  --imgsz 640 \
-  --device mps
+```powershell
+python -m pip install modal
+python -X utf8 -m modal setup
+python -X utf8 -m modal volume create football-dataset
+python -X utf8 -m modal volume put football-dataset .\datasets\football_4class_clip_split /football_4class_clip_split
+python -X utf8 -m modal run modal_train.py --dataset football_4class_clip_split --model yolo26x.pt --epochs 50 --imgsz 640 --batch 8 --freeze 10 --name freeze10_repeat
+python -X utf8 -m modal run modal_train.py --dataset football_4class_clip_split --model yolo26x.pt --epochs 50 --imgsz 640 --batch 8 --name full_repeat
 ```
-Best checkpoint is written to `runs/train/football_detector/weights/best.pt`.
 
-3. After training, set `YOLO_CONFIG["model_path"]` in `config.py` to `"runs/train/football_detector/weights/best.pt"`.
-
-### Notes
-
-- on Apple Silicon, use `--device mps` for training and set `"device": "mps"` in `YOLO_CONFIG` in `config.py` for inference
-- for CPU runs, use `--device cpu` for training and `"device": "cpu"` in `YOLO_CONFIG` for inference
+`modal_train.py` stores checkpoint, `results.csv` and plots in the `football-training-runs` Volume. The completed comparison is in [the full report](report/BAO_CAO_HOAN_CHINH.md) and [raw summary JSON](report/data/comparison_b_summary.json). The default dashboard looks for the downloaded `freeze=10` checkpoint under `runs/modal/detection_player_freeze10_v1/weights/best.pt`; download it from your Modal Volume when setting up another computer. Dataset and checkpoints are intentionally not pushed to GitHub.
 
 ## Current Scope and Limitations
 
 - optimized for single-camera broadcast-style footage
 - all frames are loaded into memory before processing — not suitable for long videos
-- team assignment uses KMeans on the first frame only — can misclassify players with similar jersey colors
+- team assignment remains sensitive to kit color, lighting, and camera angle; temporal reclustering reduced accuracy on the reviewed 50-frame clip
 - track ID resets (after occlusion or track loss) break per-player speed and distance accumulation
 - speed and distance estimates are approximations — accurate values require manual perspective calibration via `PerspectiveTransformer.set_calibration_points()`
 - heavy occlusions can reduce tracking quality
-- no structured data export — stats are printed to `stdout` only
+- CSV movement and possession values are estimates; without manual field calibration, meters use the original 0.1 m/pixel assumption
 - coaches and bench staff are detected as players — the base model has no concept of in-play vs. out-of-play persons
 - player detection quality depends on model — the base model can miss players under occlusion or crowding; a custom-trained model improves this (see Training section)
-- no tactical modules yet (formations, pass maps, xG, heatmaps)
+- pass maps contain unverified candidate events only; formation analysis and xG are not implemented
 
 ## Roadmap Ideas
 
-- export per-player stats (distance, speed, possession) to CSV
-- add player heatmaps per player and per team
-- add pass and shot event detection
+- evaluate CSV movement and possession against manually checked video annotations
+- validate spatial heatmaps against annotated video and calibration points
+- validate pass candidates against manually annotated events; explore shot detection
 - add formation detection from player position clusters
 - auto field calibration via pitch line detection (no manual calibration points)
 - add player re-identification across track ID resets
@@ -267,3 +258,30 @@ Best checkpoint is written to `runs/train/football_detector/weights/best.pt`.
 ## License
 
 MIT License. See `LICENSE`.
+
+## Academic extension: four-class football detector
+
+This repository is based on [alina-letzien/football-analytics](https://github.com/alina-letzien/football-analytics) (MIT). The original video pipeline, tracking, team-color clustering, possession logic, and speed/distance estimates are inherited from that project. The student extension currently adds dataset auditing and clip-group preparation, YOLO26x training on Modal, a three-setting detector evaluation, temporal team-color assignment with separate goalkeeper/referee roles, corrected consecutive-frame distance accounting, structured CSV export, spatial heatmap/minimap views, a local Streamlit dashboard, and a conservative pass-candidate map. The default detector still uses `yolo26x.pt`; set `YOLO_MODEL_PATH` to the four-class checkpoint to activate role-specific predictions.
+
+| Component | Status and source |
+|---|---|
+| Video analytics pipeline | Inherited from the original MIT project |
+| `detection-player` v4 dataset | FSDM on [Roboflow Universe](https://universe.roboflow.com/fsdm-olss1/detection-player/dataset/4), CC BY 4.0; cleaned and split by clip for this experiment |
+| Four-class YOLO fine-tuning | Added here; pretrained, `freeze=10`, and full fine-tune comparison on Modal |
+| Dataset audit and experimental figures | Added here; scripts in `scripts/`, reports and figures in `report/` |
+| Team assignment and role separation | Added here; 50 reviewed validation frames, 200 player samples, ablation results in step C |
+| CSV export | Added here; player, team, possession timeline and method metadata. No real-video movement results yet. |
+| Heatmap/minimap | Added here; two explicit modes: calibrated field or normalized image space. Dataset illustration in step E. |
+| Streamlit | Added here; local video upload, annotated H.264 playback, charts/pass map, CSV tables, and downloadable report ZIP. |
+| Pass map (optional G) | Added here as an unverified same-team candidate heuristic; no pass labels or accuracy metrics yet. |
+
+See the [dataset guide](docs/DATASET_GUIDE.md), [step A report](report/BAO_CAO_BUOC_A.md), [step B report](report/BAO_CAO_BUOC_B.md), [step C report](report/BAO_CAO_BUOC_C.md), [step D report](report/BAO_CAO_BUOC_D.md), [step E report](report/BAO_CAO_BUOC_E.md), [step F report](report/BAO_CAO_BUOC_F.md), [step G report](report/BAO_CAO_BUOC_G.md), and [combined report outline](report/DE_CUONG_BAO_CAO.md). The reports include experimental protocols, figures, and limitations of the clip-level split. Large datasets and checkpoints remain local or in Modal Volumes and are excluded from Git.
+
+### Run the local dashboard
+
+```powershell
+python -m pip install -r requirements.txt
+python -m streamlit run dashboard.py
+```
+
+Open `http://127.0.0.1:8501`. The default checkpoint is `runs/modal/detection_player_freeze10_v1/weights/best.pt` when present. Training was performed on Modal; the dashboard runs inference on this computer, using CPU or a detected local GPU. It accepts clips up to 100 MB, 450 frames, and 1280×720 because the pipeline loads every frame into memory. Uploaded clips and job output are kept under ignored `output/dashboard_jobs/`. The downloadable ZIP contains CSV, figures, pass candidates, and method metadata; video playback uses a separate H.264 file. Without manual field calibration, distances and speeds remain approximate. Pass-map arrows are unverified candidates, not annotated events.

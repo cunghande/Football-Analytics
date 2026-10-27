@@ -1,0 +1,91 @@
+{
+  "source": "detection-player v4 clip 2, first sorted export for frame IDs 0..197",
+  "reference": "report\\data\\team_review_verified.csv",
+  "evaluation_frames": [
+    148,
+    197
+  ],
+  "calibration_frame": 147,
+  "protocol": "Four visually reviewed field-player crops per frame; GT YOLO boxes; simple adjacent-frame IoU IDs; one calibration frame excluded; unknown counts as incorrect.",
+  "role_boxes_excluded_in_50_frames": {
+    "goalkeeper": 42,
+    "referee": 42
+  },
+  "scores": {
+    "legacy": {
+      "instances": 200,
+      "correct_instances": 116,
+      "instance_accuracy": 0.58,
+      "unknown_instances": 0,
+      "frames": 50,
+      "all_correct_frames": 8,
+      "all_correct_frame_rate": 0.16,
+      "per_team": {
+        "white": {
+          "correct": 58,
+          "total": 95
+        },
+        "red_black": {
+          "correct": 58,
+          "total": 105
+        }
+      },
+      "calibration_mapping": {
+        "2": "white",
+        "1": "red_black",
+        "0": "unknown"
+      },
+      "refresh_count": 0
+    },
+    "torso_vote": {
+      "instances": 200,
+      "correct_instances": 194,
+      "instance_accuracy": 0.97,
+      "unknown_instances": 0,
+      "frames": 50,
+      "all_correct_frames": 44,
+      "all_correct_frame_rate": 0.88,
+      "per_team": {
+        "white": {
+          "correct": 92,
+          "total": 95
+        },
+        "red_black": {
+          "correct": 102,
+          "total": 105
+        }
+      },
+      "calibration_mapping": {
+        "2": "white",
+        "1": "red_black",
+        "0": "unknown"
+      },
+      "refresh_count": 0
+    },
+    "temporal": {
+      "instances": 200,
+      "correct_instances": 189,
+      "instance_accuracy": 0.945,
+      "unknown_instances": 0,
+      "frames": 50,
+      "all_correct_frames": 39,
+      "all_correct_frame_rate": 0.78,
+      "per_team": {
+        "white": {
+          "correct": 92,
+          "total": 95
+        },
+        "red_black": {
+          "correct": 97,
+          "total": 105
+        }
+      },
+      "calibration_mapping": {
+        "2": "white",
+        "1": "red_black",
+        "0": "unknown"
+      },
+      "refresh_count": 6
+    }
+  }
+}

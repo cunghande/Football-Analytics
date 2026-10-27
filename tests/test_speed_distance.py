@@ -16,7 +16,8 @@ def test_speed_for_known_displacement():
     calc = SpeedDistanceCalculator(fps=5.0)
     tracks = _tracks([(0.0, 0.0)] * 5 + [(10.0, 0.0)])
     calc.add_speed_and_distance_to_tracks(tracks, frame_window=5)
-    assert abs(tracks["players"][0][1]["speed"] - 36.0) < 0.1
+    assert tracks["players"][0][1]["speed"] == 0.0
+    assert tracks["players"][5][1]["speed"] == pytest.approx(36.0)
 
 
 def test_distance_accumulates_across_windows():
@@ -38,3 +39,19 @@ def test_missing_position_transformed_does_not_crash():
 def test_measure_distance_pythagorean():
     assert SpeedDistanceCalculator._measure_distance((0.0, 0.0), (3.0, 4.0)) == pytest.approx(5.0)
     assert SpeedDistanceCalculator._measure_distance((1.0, 1.0), (1.0, 1.0)) == pytest.approx(0.0)
+
+
+def test_no_distance_added_across_missing_frame_and_goalkeeper_measured():
+    tracks = {"players": [
+        {1: {"position_transformed": (0.0, 0.0)}},
+        {},
+        {1: {"position_transformed": (100.0, 0.0)}},
+        {1: {"position_transformed": (103.0, 4.0)}},
+    ], "goalkeepers": [
+        {2: {"position_transformed": (0.0, 0.0)}},
+        {2: {"position_transformed": (0.0, 1.0)}},
+        {}, {},
+    ]}
+    SpeedDistanceCalculator(fps=10).add_speed_and_distance_to_tracks(tracks)
+    assert tracks["players"][3][1]["distance"] == pytest.approx(5.0)
+    assert tracks["goalkeepers"][1][2]["distance"] == pytest.approx(1.0)

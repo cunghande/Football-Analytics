@@ -48,6 +48,12 @@ output/*.mp4
 output/*.avi
 output/*.mov
 output/*.json
+output/*.csv
+output/*.png
+output/*.pdf
+output/*.zip
+output/dashboard_jobs/
+output/docx_qa/
 stubs/*.pkl
 runs/
 *.pt

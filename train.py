@@ -25,6 +25,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--imgsz", type=int, default=640, help="Training image size.")
     parser.add_argument("--batch", type=int, default=16, help="Batch size.")
     parser.add_argument(
+        "--freeze",
+        type=int,
+        default=0,
+        help="Freeze the first N model layers; 0 keeps all layers trainable.",
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default="mps",
@@ -77,10 +83,11 @@ def main() -> None:
     print(f"  epochs:  {args.epochs}")
     print(f"  imgsz:   {args.imgsz}")
     print(f"  batch:   {args.batch}")
+    print(f"  freeze:  {args.freeze}")
 
     model = YOLO(args.model)
 
-    results = model.train(
+    train_kwargs = dict(
         data=str(data_path),
         epochs=args.epochs,
         imgsz=args.imgsz,
@@ -91,6 +98,9 @@ def main() -> None:
         patience=args.patience,
         workers=args.workers,
     )
+    if args.freeze > 0:
+        train_kwargs["freeze"] = args.freeze
+    results = model.train(**train_kwargs)
 
     run_dir = Path(args.project) / args.name
     best_weights = run_dir / "weights" / "best.pt"

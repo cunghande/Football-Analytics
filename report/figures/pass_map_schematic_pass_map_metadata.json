@@ -1,0 +1,12 @@
+{
+  "coordinate_mode": "normalized_image",
+  "frames": 12,
+  "fps": 10,
+  "candidate_count": 2,
+  "edge_count": 2,
+  "displayed_edges_per_team_max": 20,
+  "params": {},
+  "example_label": "SYNTHETIC EXAMPLE",
+  "method": "Stable owner A, visible free-ball interval, stable owner B, same known team, distance gate.",
+  "warning": "Candidate events only; nearest-foot ownership and track IDs are unverified. No pass precision/recall is claimed."
+}

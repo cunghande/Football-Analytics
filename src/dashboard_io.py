@@ -1,0 +1,178 @@
+"""Isolated input/output handling for the local Streamlit dashboard."""
+
+import csv
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import uuid
+import zipfile
+
+import cv2
+
+
+ALLOWED_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv"}
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+MAX_FRAMES = 450
+MAX_FRAME_PIXELS = 1280 * 720
+
+
+def create_job(uploaded, jobs_root="output/dashboard_jobs"):
+    """Store uploaded bytes under an app-generated path, never its client name."""
+    suffix = Path(uploaded.name).suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise ValueError("Chỉ nhận video MP4, MOV, AVI hoặc MKV.")
+    if uploaded.size <= 0 or uploaded.size > MAX_UPLOAD_BYTES:
+        raise ValueError("Video phải có dung lượng từ 1 byte đến 100 MB.")
+    job = Path(jobs_root) / uuid.uuid4().hex
+    job.mkdir(parents=True, exist_ok=False)
+    input_path = job / f"input{suffix}"
+    uploaded.seek(0)
+    with input_path.open("wb") as target:
+        shutil.copyfileobj(uploaded, target, length=1024 * 1024)
+    if input_path.stat().st_size != uploaded.size:
+        raise IOError("Tệp tải lên chưa được lưu đầy đủ.")
+    return job, input_path
+
+
+def probe_video(path):
+    """Validate a small clip before a memory-heavy full pipeline run."""
+    capture = cv2.VideoCapture(str(path))
+    try:
+        if not capture.isOpened():
+            raise ValueError("Không đọc được video đã tải lên.")
+        fps = float(capture.get(cv2.CAP_PROP_FPS))
+        frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        ok, _ = capture.read()
+        if not ok or fps <= 0 or frames <= 0 or width <= 0 or height <= 0:
+            raise ValueError("Video thiếu frame hoặc metadata FPS/kích thước hợp lệ.")
+        if frames > MAX_FRAMES:
+            raise ValueError(f"Video tối đa {MAX_FRAMES} frame; hãy cắt clip ngắn hơn.")
+        if width * height > MAX_FRAME_PIXELS:
+            raise ValueError("Video tối đa 1280×720 pixel; hãy giảm độ phân giải.")
+        return {"fps": fps, "frames": frames, "width": width, "height": height,
+                "duration_seconds": frames / fps}
+    finally:
+        capture.release()
+
+
+def transcode_for_browser(source, destination):
+    """Convert OpenCV's mp4v output to browser-compatible H.264 MP4."""
+    from imageio_ffmpeg import get_ffmpeg_exe
+
+    command = [
+        get_ffmpeg_exe(), "-y", "-hide_banner", "-loglevel", "error",
+        "-i", str(source), "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart", str(destination),
+    ]
+    subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    destination = Path(destination)
+    if not destination.exists() or destination.stat().st_size == 0:
+        raise RuntimeError("Không tạo được video H.264 để xem trong trình duyệt.")
+    return destination
+
+
+def analysis_files(stem):
+    stem = Path(stem)
+    base = str(stem)
+    return {
+        "video": Path(base + "_browser.mp4"),
+        "raw_video": Path(base + ".mp4"),
+        "players": Path(base + "_players.csv"),
+        "teams": Path(base + "_teams.csv"),
+        "timeline": Path(base + "_possession_timeline.csv"),
+        "summary": Path(base + "_summary.json"),
+        "csv_metadata": Path(base + "_csv_metadata.json"),
+        "heatmaps": Path(base + "_heatmaps.png"),
+        "heatmaps_pdf": Path(base + "_heatmaps.pdf"),
+        "heatmaps_metadata": Path(base + "_heatmaps_metadata.json"),
+        "minimap": Path(base + "_minimap_last.png"),
+        "chart": Path(base + "_report_chart.png"),
+        "chart_pdf": Path(base + "_report_chart.pdf"),
+        "pass_candidates": Path(base + "_pass_candidates.csv"),
+        "pass_map": Path(base + "_pass_map.png"),
+        "pass_map_pdf": Path(base + "_pass_map.pdf"),
+        "pass_map_metadata": Path(base + "_pass_map_metadata.json"),
+    }
+
+
+def run_job(input_path, job, model_path, device):
+    """Call the same analysis pipeline used by main.py, then render charts."""
+    from main import FootballAnalyzer
+    from scripts.plot_csv_report import plot_csv_report
+
+    stem = Path(job) / "analysis"
+    analyzer = FootballAnalyzer(
+        video_path=str(input_path),
+        output_path=str(stem) + ".mp4",
+        model_path=str(model_path),
+        device=device,
+        read_from_stub=False,
+        stub_dir=str(Path(job) / "stubs"),
+    )
+    analyzer.analyze_video()
+    files = analysis_files(stem)
+    needed = ("raw_video", "players", "teams", "timeline", "heatmaps", "minimap",
+              "pass_candidates", "pass_map")
+    missing = [key for key in needed if not files[key].exists()]
+    if missing:
+        raise RuntimeError(f"Pipeline chưa tạo đủ kết quả: {', '.join(missing)}")
+    plot_csv_report(str(stem))
+    transcode_for_browser(files["raw_video"], files["video"])
+    run_metadata = {
+        "model_path": str(Path(model_path).resolve()),
+        "device": device,
+        "source_name": Path(input_path).name,
+    }
+    (Path(job) / "dashboard_run.json").write_text(
+        json.dumps(run_metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    return files
+
+
+def read_csv(path):
+    with Path(path).open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def create_report_zip(job):
+    """Bundle only descriptive report data, not the large video or raw upload."""
+    job = Path(job)
+    files = analysis_files(job / "analysis")
+    include = [path for key, path in files.items() if key not in ("video", "raw_video")]
+    include.append(job / "dashboard_run.json")
+    missing = [path.name for path in include if not path.exists()]
+    if missing:
+        raise FileNotFoundError(f"Thiếu tệp báo cáo: {', '.join(missing)}")
+    destination = job / "analysis_report.zip"
+    with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in include:
+            archive.write(path, arcname=path.name)
+    return destination
+
+
+def create_academic_zip(root):
+    """Bundle the existing A-G reports and clearly labeled figures."""
+    root = Path(root)
+    reports = [root / "report" / f"BAO_CAO_BUOC_{step}.md" for step in "ABCDEFG"]
+    reports.append(root / "report" / "DE_CUONG_BAO_CAO.md")
+    figure_names = (
+        "dataset_distribution.png", "comparison_b_metrics.png",
+        "comparison_b_per_class.png", "team_assignment_comparison.png",
+        "team_assignment_frame_heatmap.png", "dataset_spatial_preview_50frames.png",
+        "dataset_spatial_preview_metadata.json", "dashboard_pipeline_smoke.png",
+        "pass_map_schematic_pass_map.png", "pass_map_schematic_pass_map_metadata.json",
+        "pass_map_schematic_pass_candidates.csv",
+    )
+    figures = [root / "report" / "figures" / name for name in figure_names]
+    files = reports + figures
+    missing = [str(path) for path in files if not path.exists()]
+    if missing:
+        raise FileNotFoundError(f"Thiếu tư liệu: {', '.join(missing)}")
+    destination = root / "output" / "academic_reports_A_E.zip"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in files:
+            archive.write(path, arcname=str(path.relative_to(root)))
+    return destination

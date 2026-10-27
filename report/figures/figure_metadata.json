@@ -1,0 +1,43 @@
+{
+  "dataset": "detection-player v4, cleaned clip-group split",
+  "image_counts": {
+    "train": 1247,
+    "valid": 599,
+    "test": 244
+  },
+  "box_counts": {
+    "train": {
+      "ball": 971,
+      "goalkeeper": 897,
+      "player": 12967,
+      "referee": 1431
+    },
+    "valid": {
+      "ball": 448,
+      "goalkeeper": 371,
+      "player": 7859,
+      "referee": 815
+    },
+    "test": {
+      "ball": 240,
+      "goalkeeper": 244,
+      "player": 244,
+      "referee": 270
+    }
+  },
+  "training_summary": {
+    "best_epoch": "23",
+    "epochs_completed": "43",
+    "precision": "0.65779",
+    "recall": "0.53901",
+    "mAP50": "0.52506",
+    "mAP50_95": "0.24651"
+  },
+  "checkpoint_sha256": "77e9593c2a758ed31bedb2a3b993157fa4f1c01f9044f844d1ee798151501417",
+  "qualitative_images": [
+    "1_mp4-16_jpg.rf.3aba0aa5b925eec6081a2fad787c1b5a.jpg",
+    "2_mp4-50_jpg.rf.2aafaed312a0a8593bf2868862f97ad7.jpg"
+  ],
+  "prediction_confidence_for_figure_only": 0.25,
+  "limitation": "Clip groups do not establish match-level independence."
+}

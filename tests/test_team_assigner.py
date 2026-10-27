@@ -80,7 +80,7 @@ def test_low_confidence_returns_unknown_and_is_not_cached():
     frames = [_two_player_frame()]
     tracks = [{1: {"bbox": RED_BBOX}, 2: {"bbox": BLUE_BBOX}}]
 
-    ta = TeamAssigner(n_teams=2, min_confidence_threshold=0.15)
+    ta = TeamAssigner(n_teams=2, min_confidence_threshold=0.9)
     ta.fit_team_colors(frames, tracks)
 
     grey_frame = _frame_with_color(100, 100, GREY_BBOX, GREY)
@@ -118,7 +118,7 @@ def test_team_color_overrides_change_rendering_color():
 
 
 def test_not_enough_players_leaves_kmeans_none():
-    """Fewer than n_teams players → kmeans stays None → get_player_team falls back to 1"""
+    """Fewer than two colors leaves the team unknown rather than guessing team 1."""
     frame = _frame_with_color(100, 100, RED_BBOX, RED)
     frames = [frame]
     tracks = [{1: {"bbox": RED_BBOX}}]  # only one player, n_teams=2
@@ -128,11 +128,11 @@ def test_not_enough_players_leaves_kmeans_none():
 
     assert ta.kmeans is None
     result = ta.get_player_team(frame, RED_BBOX, player_id=1)
-    assert result == 1
+    assert result == UNKNOWN_TEAM_ID
 
 
 def test_non_distinct_colors_leave_kmeans_none():
-    """All players with identical colors → kmeans stays None → fallback to 1"""
+    """Identical colors leave the team unknown."""
     black_frame = np.zeros((200, 640, 3), dtype=np.uint8)
     frames = [black_frame] * 20
     tracks = [{1: {"bbox": [100, 100, 120, 200]}}] * 20
@@ -142,4 +142,24 @@ def test_non_distinct_colors_leave_kmeans_none():
 
     assert ta.kmeans is None
     result = ta.get_player_team(black_frame, [100, 100, 120, 200], player_id=1)
-    assert result == 1
+    assert result == UNKNOWN_TEAM_ID
+
+
+def test_recluster_preserves_team_ids_under_color_shift():
+    frames = []
+    tracks = []
+    for idx in range(6):
+        frame = np.zeros((100, 100, 3), dtype=np.uint8)
+        frame[0:20, 0:20] = (0, 0, 240 - idx * 10)
+        frame[0:20, 50:70] = (240 - idx * 10, 0, 0)
+        frames.append(frame)
+        tracks.append({1: {"bbox": RED_BBOX}, 2: {"bbox": BLUE_BBOX}})
+    ta = TeamAssigner(n_teams=2, color_sample_frames=2, recluster_interval=3,
+                      recluster_window=3, min_confidence_threshold=0.1)
+    ta.fit_team_colors(frames, tracks)
+    initial_red = ta.get_player_team(frames[0], RED_BBOX, 1)
+    initial_blue = ta.get_player_team(frames[0], BLUE_BBOX, 2)
+    assert ta.update_team_colors(frames, tracks, 3)
+    assert ta.refresh_count == 1
+    assert ta.get_player_team(frames[4], RED_BBOX, 1) == initial_red
+    assert ta.get_player_team(frames[4], BLUE_BBOX, 2) == initial_blue

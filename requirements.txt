@@ -7,3 +7,6 @@ scikit-learn==1.9.1
 supervision==0.30.4
 trackers==2.6.0
 pytest
+streamlit==1.66.1
+imageio-ffmpeg==0.6.0
+matplotlib==3.11.0

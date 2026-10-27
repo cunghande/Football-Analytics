@@ -6,11 +6,11 @@ import os
 
 # YOLO Configuration
 YOLO_CONFIG = {
-    "model_path": "yolo26x.pt",  # Options: yolo26n, yolo26s, yolo26m, yolo26l, yolo26x
+    "model_path": os.environ.get("YOLO_MODEL_PATH", "yolo26x.pt"),
     "confidence_threshold": 0.5,
     "iou_threshold": 0.45,
     # "cpu", "mps" (Apple Silicon), or GPU index like "0"; override with YOLO_DEVICE env var (used in CI, which has no mps)
-    "device": os.environ.get("YOLO_DEVICE", "mps"),
+    "device": os.environ.get("YOLO_DEVICE", "cpu"),  # "cpu", "0" (NVIDIA GPU), or "mps" (Apple Silicon)
 }
 
 # Tracker Configuration (ByteTrack)
@@ -28,6 +28,10 @@ TEAM_CONFIG = {
     "kmeans_random_state": 42,
     "color_sample_frames": 10,        # Number of early frames to aggregate jersey colors from
     "min_confidence_threshold": 0.15, # Relative margin below which assignment is UNKNOWN (team 0)
+    "recluster_interval": 30,         # Refit every 30 frames; set 0 for stable kits (higher score on the reviewed clip)
+    "recluster_window": 90,           # Use a recent 90-frame window for each refit
+    "team_vote_window": 7,            # Smooth each tracked player's recent confident votes
+    "suppress_pitch_green": True,      # Disable when a field team wears green jerseys
     # Override the rendering color for a team (BGR tuple). Leave empty — KMeans picks colors
     # automatically from jersey crops and works well when kits are visually distinct.
     #
@@ -51,11 +55,21 @@ POSSESSION_CONFIG = {
     "max_player_ball_distance": 70,  # Max pixel distance to assign ball to a player
 }
 
+# Candidate passes are deliberately conservative and are not verified events.
+PASS_CONFIG = {
+    "min_stable_frames": 2,
+    "max_gap_seconds": 0.8,
+    "min_distance_norm": 0.03,
+    "max_distance_norm": 0.75,
+}
+
 # Perspective Transformation Configuration
 FIELD_CONFIG = {
     "field_width": 120.0,   # Meters
     "field_height": 80.0,   # Meters
-    "calibration_points": None,  # Will be set during runtime
+    # Optional manual calibration: {"src": [(x,y), ... 4 image points],
+    # "dst": [(x_m,y_m), ... 4 matching field points]}. No automatic calibration.
+    "calibration_points": None,
 }
 
 # Speed and Distance Configuration
@@ -91,4 +105,5 @@ COLORS = {
     "player": (255, 0, 0),      # Blue (fallback when team color is unknown)
     "ball": (0, 255, 0),        # Green
     "referee": (0, 255, 255),   # Yellow
+    "goalkeeper": (0, 165, 255), # Orange
 }

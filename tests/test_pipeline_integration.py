@@ -75,4 +75,4 @@ def test_full_downstream_pipeline(synthetic_tracks, synthetic_frames):
         assert key in last_player, f"missing key: {key}"
 
     assert possession_found, "ball was never assigned to a player"
-    assert synthetic_tracks["players"][0][PLAYER_ID]["team"] == 1
+    assert synthetic_tracks["players"][0][PLAYER_ID]["team"] == 0

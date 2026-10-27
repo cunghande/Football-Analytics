@@ -17,6 +17,7 @@ class YOLODetector:
         
         detections = {
             "players": [],
+            "goalkeepers": [],
             "balls": [],
             "referees": []
         }
@@ -41,8 +42,10 @@ class YOLODetector:
                 }
                 
                 # Classify detected objects
-                if class_name in {"person", "player", "goalkeeper"}:
+                if class_name in {"person", "player"}:
                     detections["players"].append(bbox)
+                elif class_name == "goalkeeper":
+                    detections["goalkeepers"].append(bbox)
                 elif class_name in {"ball", "sports ball"}:
                     detections["balls"].append(bbox)
                 elif class_name == "referee":

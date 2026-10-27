@@ -35,13 +35,15 @@ class ByteTrackTracker:
         self.objects = {}
         self.track_history = {}
         self.max_ball_interpolation_gap = max_ball_interpolation_gap
-        self._class_to_id = {"player": 0, "referee": 1, "ball": 2}
+        self._class_to_id = {"player": 0, "referee": 1, "ball": 2, "goalkeeper": 3}
         self._id_to_class = {v: k for k, v in self._class_to_id.items()}
 
     def _normalize_class_name(self, class_name: str) -> str:
         normalized = class_name.lower()
-        if normalized in {"person", "player", "goalkeeper"}:
+        if normalized in {"person", "player"}:
             return "player"
+        if normalized == "goalkeeper":
+            return "goalkeeper"
         if normalized in {"ball", "sports ball"}:
             return "ball"
         if normalized == "referee":
@@ -115,6 +117,7 @@ class ByteTrackTracker:
 
         tracks = {
             "players": {},
+            "goalkeepers": {},
             "referees": {},
             "ball": {},
         }
@@ -129,6 +132,8 @@ class ByteTrackTracker:
 
             if class_name == "ball":
                 tracks["ball"][track_id] = track_payload
+            elif class_name == "goalkeeper":
+                tracks["goalkeepers"][track_id] = track_payload
             elif class_name == "referee":
                 tracks["referees"][track_id] = track_payload
             else:
@@ -178,4 +183,3 @@ class ByteTrackTracker:
             x, y = center
             output.append({1: {"bbox": [x - 8, y - 8, x + 8, y + 8], "center": center, "conf": 0.0}})
         return output
-    

@@ -1,0 +1,15 @@
+{
+  "dataset": "FSDM detection-player v4, CC BY 4.0",
+  "source": "https://universe.roboflow.com/fsdm-olss1/detection-player/dataset/4",
+  "split": "derived validation, clip 2, one export per source frame",
+  "frame_range": [
+    148,
+    197
+  ],
+  "frame_count": 50,
+  "sample_image": "2_mp4-148_jpg.rf.bc3fdaadf7eda3603142219122031c31.jpg",
+  "player_boxes_count": 594,
+  "discarded_player_boxes": 39,
+  "coordinate_mode": "normalized image; no field calibration",
+  "qualification": "Boxes are GT detections, not tracked identities; no speed or distance inferred."
+}
