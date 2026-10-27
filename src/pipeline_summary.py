@@ -4,7 +4,7 @@ import json
 import os
 
 
-def compute_summary_stats(tracks: dict, num_frames: int) -> dict:
+def compute_summary_stats(tracks: dict, num_frames: int, observed_ball_frames=None) -> dict:
     player_frames = tracks.get("players", [])
     referee_frames = tracks.get("referees", [])
     ball_frames = tracks.get("ball", [])
@@ -36,11 +36,15 @@ def compute_summary_stats(tracks: dict, num_frames: int) -> dict:
     team_split = [top_counts[0] if len(top_counts) > 0 else 0,
                   top_counts[1] if len(top_counts) > 1 else 0]
 
+    ball_observed = (sum(1 for f in ball_frames if f) if observed_ball_frames is None
+                     else observed_ball_frames)
     return {
         "frames": num_frames,
         "avg_players_per_frame": (sum(len(f) for f in player_frames) / num_frames) if num_frames else 0.0,
         "avg_referees_per_frame": (sum(len(f) for f in referee_frames) / num_frames) if num_frames else 0.0,
-        "ball_detection_rate": (sum(1 for f in ball_frames if f) / num_frames) if num_frames else 0.0,
+        "ball_detection_rate": (ball_observed / num_frames) if num_frames else 0.0,
+        "ball_observed_frames": ball_observed,
+        "ball_available_frames": sum(1 for f in ball_frames if f),
         "player_track_id_count": len(player_track_ids),
         "team_split": team_split,
         "speed_kmh_max": max(speeds) if speeds else 0.0,

@@ -8,6 +8,7 @@ import os
 YOLO_CONFIG = {
     "model_path": os.environ.get("YOLO_MODEL_PATH", "yolo26x.pt"),
     "confidence_threshold": 0.5,
+    "ball_confidence_threshold": 0.25,
     "iou_threshold": 0.45,
     # "cpu", "mps" (Apple Silicon), or GPU index like "0"; override with YOLO_DEVICE env var (used in CI, which has no mps)
     "device": os.environ.get("YOLO_DEVICE", "cpu"),  # "cpu", "0" (NVIDIA GPU), or "mps" (Apple Silicon)

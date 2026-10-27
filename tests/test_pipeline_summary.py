@@ -75,6 +75,15 @@ def test_compute_summary_stats_empty_tracks():
     assert stats["team_split"] == [0, 0]
 
 
+def test_ball_detection_rate_excludes_interpolated_frames():
+    tracks = {"players": [{}, {}, {}], "referees": [{}, {}, {}],
+              "ball": [{0: {}}, {1: {}}, {0: {}}]}
+    stats = compute_summary_stats(tracks, num_frames=3, observed_ball_frames=2)
+    assert stats["ball_detection_rate"] == 2 / 3
+    assert stats["ball_observed_frames"] == 2
+    assert stats["ball_available_frames"] == 3
+
+
 def test_write_summary_json(tmp_path):
     import json
     stats = {"frames": 10, "ball_detection_rate": 0.5}

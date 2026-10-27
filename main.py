@@ -42,6 +42,7 @@ class FootballAnalyzer:
             model_path=model_path,
             device=device,
             conf=YOLO_CONFIG["confidence_threshold"],
+            ball_conf=YOLO_CONFIG["ball_confidence_threshold"],
             iou=YOLO_CONFIG["iou_threshold"],
         )
 
@@ -148,14 +149,24 @@ class FootballAnalyzer:
         for frame_num, frame in enumerate(video_frames):
             detections = self.detector.detect(frame)
             tracker_input = (detections["players"] + detections["goalkeepers"]
-                             + detections["referees"] + detections["balls"])
+                             + detections["referees"])
             active_tracks = self.tracker.update(tracker_input)
             split_tracks = self.tracker.split_tracks_by_class(active_tracks)
 
             tracks["players"].append(split_tracks["players"])
             tracks["goalkeepers"].append(split_tracks["goalkeepers"])
             tracks["referees"].append(split_tracks["referees"])
-            tracks["ball"].append(split_tracks["ball"])
+            # The ball is tiny and often falls below ByteTrack's new-track
+            # confidence gate. Keep the best detection for this frame instead.
+            balls = detections["balls"]
+            if balls:
+                best = max(balls, key=lambda ball: ball["conf"])
+                tracks["ball"].append({0: {
+                    "bbox": [best[key] for key in ("x1", "y1", "x2", "y2")],
+                    "center": best["center"], "conf": best["conf"],
+                }})
+            else:
+                tracks["ball"].append({})
 
             if frame_num % 30 == 0:
                 print(f"Tracked {frame_num}/{len(video_frames)} frames")
@@ -216,7 +227,8 @@ class FootballAnalyzer:
         for _, track_info in frame_tracks.get("ball", {}).items():
             x1, y1, x2, y2 = map(int, track_info["bbox"])
             cv2.rectangle(output, (x1, y1), (x2, y2), COLORS["ball"], 2)
-            cv2.putText(output, "Ball", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS["ball"], 2)
+            label = "Ball (est.)" if track_info.get("conf", 0) == 0 else "Ball"
+            cv2.putText(output, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS["ball"], 2)
 
         return output
 
@@ -264,6 +276,7 @@ class FootballAnalyzer:
         self.speed_calculator.fps = fps
 
         tracks = self._build_tracks(video_frames)
+        observed_ball_frames = sum(bool(frame) for frame in tracks["ball"])
         tracks["ball"] = self.tracker.interpolate_ball_tracks(tracks["ball"])
         self._add_position_to_tracks(tracks)
 
@@ -306,8 +319,11 @@ class FootballAnalyzer:
             assigned_player = -1
             if ball_track:
                 first_ball_id = next(iter(ball_track))
-                ball_bbox = ball_track[first_ball_id]["bbox"]
-                assigned_player = self.player_ball_assigner.assign_ball_to_player(player_tracks, ball_bbox)
+                # Interpolated balls (conf=0) may be drawn for continuity, but
+                # must not become evidence of player/team ball control.
+                if ball_track[first_ball_id].get("conf", 0) > 0:
+                    ball_bbox = ball_track[first_ball_id]["bbox"]
+                    assigned_player = self.player_ball_assigner.assign_ball_to_player(player_tracks, ball_bbox)
 
             if assigned_player != -1 and assigned_player in tracks["players"][frame_num]:
                 tracks["players"][frame_num][assigned_player]["has_ball"] = True
@@ -321,7 +337,8 @@ class FootballAnalyzer:
 
         self.speed_calculator.add_speed_and_distance_to_tracks(tracks, frame_window=SPEED_CONFIG["frame_window"])
 
-        summary_stats = compute_summary_stats(tracks, num_frames=len(video_frames))
+        summary_stats = compute_summary_stats(tracks, num_frames=len(video_frames),
+                                              observed_ball_frames=observed_ball_frames)
         summary_path = os.path.splitext(self.output_path)[0] + "_summary.json"
         write_summary_json(summary_stats, summary_path)
         csv_paths = export_analysis_csv(

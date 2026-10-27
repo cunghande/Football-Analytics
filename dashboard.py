@@ -42,9 +42,15 @@ def _show_job(job):
     teams = read_csv(files["teams"])
     players = read_csv(files["players"])
     st.subheader("Thống kê mô tả")
+    assigned_frames = sum(int(row["possession_frames"]) for row in teams
+                          if row["team_id"] in {"1", "2"})
+    if assigned_frames == 0:
+        st.warning("Không gán được bóng cho đội nào trong đoạn này. "
+                   "Chưa có số liệu kiểm soát bóng để hiển thị.")
     columns = st.columns(3)
-    for col, row, title in zip(columns, teams, ("Đội 1", "Đội 2", "Chưa rõ đội")):
-        col.metric(title, f"{float(row['possession_pct_video']):.1f}%")
+    for col, row, title in zip(columns, teams, ("Đội 1", "Đội 2", "Không gán bóng")):
+        col.metric(title, f"{float(row['possession_pct_video']):.1f}%"
+                   if assigned_frames else "Không đo được")
     st.caption("Tỷ lệ frame được gán bóng, không phải nhãn kiểm soát bóng chuẩn. Hai đội là ID cụm màu áo.")
     st.image(str(files["chart"]), caption="Gán bóng theo frame và mức quan sát track; quãng đường chỉ hiện khi đã hiệu chỉnh sân.")
     st.image(str(files["heatmaps"]), caption="Mật độ vị trí quan sát; xem metadata để biết chế độ tọa độ.")
@@ -132,7 +138,9 @@ def _video_tab():
         except Exception as exc:
             st.error(f"Không xử lý được video: {exc}")
     job = st.session_state.get("dashboard_job")
-    if job:
+    if job and uploaded is not None and uploaded.name != st.session_state.get("dashboard_source"):
+        st.info("Kết quả đang lưu thuộc video trước. Hãy bấm Phân tích video để tạo báo cáo cho tệp mới.")
+    elif job:
         st.divider()
         st.caption(f"Kết quả lần chạy gần nhất: {st.session_state.get('dashboard_source', 'video')}.")
         _show_job(job)

@@ -53,6 +53,7 @@ output/*.png
 output/*.pdf
 output/*.zip
 output/dashboard_jobs/
+output/pdf/
 output/docx_qa/
 output/report_qa/
 stubs/*.pkl

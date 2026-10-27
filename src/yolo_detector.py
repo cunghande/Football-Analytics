@@ -4,16 +4,19 @@ from typing import Dict
 
 
 class YOLODetector:
-    """YOLO v8 object detector for football analysis"""
+    """YOLO object detector for football analysis."""
 
-    def __init__(self, model_path: str = "yolo26x.pt", device: str = "cpu", conf: float = 0.5, iou: float = 0.45):
+    def __init__(self, model_path: str = "yolo26x.pt", device: str = "cpu", conf: float = 0.5,
+                 iou: float = 0.45, ball_conf: float = 0.25):
         self.model = YOLO(model_path)
         self.device = device
         self.conf = conf
+        self.ball_conf = ball_conf
         self.iou = iou
 
     def detect(self, frame: np.ndarray) -> Dict:
-        results = self.model(frame, conf=self.conf, iou=self.iou, device=self.device, nms=False)
+        results = self.model(frame, conf=min(self.conf, self.ball_conf),
+                             iou=self.iou, device=self.device, nms=False)
         
         detections = {
             "players": [],
@@ -29,6 +32,9 @@ class YOLODetector:
                 conf_score = float(box.conf[0])
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 class_name = result.names.get(cls, str(cls)).lower()
+                threshold = self.ball_conf if class_name in {"ball", "sports ball"} else self.conf
+                if conf_score < threshold:
+                    continue
                 
                 bbox = {
                     "x1": x1,

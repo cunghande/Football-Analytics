@@ -57,7 +57,7 @@ def test_uncalibrated_report_hides_false_precision_and_has_track_data(tmp_path):
 
 def test_calibrated_report_includes_estimated_movement(tmp_path):
     stem = _fixture(tmp_path, calibrated=True)
-    content = _text(generate_session_report(stem))
+    content = " ".join(_text(generate_session_report(stem)).split())
     assert "99 999.0" in content
     assert "Tốc độ" in content
 
@@ -70,3 +70,19 @@ def test_report_rejects_inconsistent_team_totals(tmp_path):
     _csv(path, rows)
     with pytest.raises(ValueError, match="frame totals"):
         generate_session_report(stem)
+
+
+def test_no_ball_report_marks_possession_unavailable(tmp_path):
+    stem = _fixture(tmp_path)
+    _csv(tmp_path / "analysis_teams.csv", [
+        {"team_id": "1", "tracked_people": "1", "possession_frames": "0", "possession_pct_video": "0"},
+        {"team_id": "2", "tracked_people": "0", "possession_frames": "0", "possession_pct_video": "0"},
+        {"team_id": "0", "tracked_people": "0", "possession_frames": "4", "possession_pct_video": "100"},
+    ])
+    (tmp_path / "analysis_summary.json").write_text(json.dumps({
+        "frames": 4, "ball_detection_rate": 0,
+    }), encoding="utf-8")
+    content = " ".join(_text(generate_session_report(stem)).split())
+    assert "Không có số liệu kiểm soát bóng hợp lệ" in content
+    assert "Không đo được" in content
+    assert "100.0%" not in content

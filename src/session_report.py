@@ -132,7 +132,9 @@ def generate_session_report(stem, destination=None, source_name=None):
             "Không diễn giải thời gian, tốc độ, quãng đường, gán bóng hoặc đường chuyền "
             "như số liệu một buổi tập thật.", body))
     source = Path(source_name or run.get("source_name") or "video đầu vào").name
-    model_name = Path(run.get("model_path") or "không ghi nhận").name
+    model_path = Path(run.get("model_path") or "không ghi nhận")
+    model_name = (f"{model_path.parent.parent.name} / {model_path.name}"
+                  if model_path.name == "best.pt" else model_path.name)
     facts = [
         ["Video", Paragraph(escape(source), body)],
         ["Model", Paragraph(escape(model_name), body)],
@@ -150,20 +152,44 @@ def generate_session_report(stem, destination=None, source_name=None):
                   _table(facts, [95, 400], font, header=False)])
 
     ball_rate = 100 * _number(summary.get("ball_detection_rate", 0))
+    ball_observed = int(summary.get("ball_observed_frames", round(ball_rate * frames / 100)))
     unknown = next(row for row in teams if str(row["team_id"]) == "0")
+    assigned_frames = sum(int(row["possession_frames"]) for row in teams
+                          if str(row["team_id"]) in {"1", "2"})
+    possession_available = ball_rate > 0 and assigned_frames > 0
+    short_limit = math.ceil(fps)
+    report_players = [row for row in players if int(row["observed_frames"]) >= short_limit]
+    short_count = len(players) - len(report_players)
+    short_goalkeepers = [row for row in players if row["role"] == "goalkeeper"
+                         and int(row["observed_frames"]) < short_limit]
+    role_note = (f" {len(short_goalkeepers)} track dự đoán thủ môn chỉ xuất hiện dưới 1 giây; "
+                 "chưa thể xác nhận vai trò từ clip này."
+                 if short_goalkeepers else "")
+    average_note = (f"Trung bình {_fmt(summary['avg_players_per_frame'])} đối tượng được gán "
+                    "lớp player mỗi frame; " if "avg_players_per_frame" in summary else "")
+    ball_message = (
+        f"Hệ thống phát hiện trực tiếp bóng ở <b>{ball_observed}/{frames} frame "
+        f"({_fmt(ball_rate)}%)</b>; "
+        f"<b>{int(unknown['possession_frames'])}/{frames}</b> frame không gán bóng "
+        "cho một trong hai đội."
+        if possession_available else
+        f"Bóng được phát hiện trực tiếp ở <b>{ball_observed}/{frames} frame "
+        f"({_fmt(ball_rate)}%)</b> nhưng không có frame nào "
+        "gán được bóng cho hai đội. <b>Không có số liệu kiểm soát bóng hợp lệ</b> cho clip này."
+    )
     story.extend([
         Paragraph("2. Mức độ quan sát", heading),
         Paragraph(
             f"Có <b>{sum(row['role'] == 'player' for row in players)} track cầu thủ</b> "
             f"và <b>{sum(row['role'] == 'goalkeeper' for row in players)} track thủ môn</b>. "
-            "Một người có thể sinh nhiều track ID sau khi mất dấu. "
-            f"Hệ thống phát hiện bóng ở <b>{_fmt(ball_rate)}%</b> frame; "
-            f"<b>{int(unknown['possession_frames'])}/{frames}</b> frame không gán bóng "
-            "cho một trong hai đội.", body),
+            + average_note + "một người có thể sinh nhiều track ID sau khi mất dấu. "
+            + ball_message +
+            f" Có {short_count} track xuất hiện dưới 1 giây; chúng vẫn được giữ trong CSV "
+            "nhưng không đưa vào bảng PDF." + role_note, body),
         ])
 
     player_data = [["Track ID", "Vai trò", "Đội", "Frame thấy", "Gán bóng\n(frame)"]]
-    for row in sorted(players, key=lambda r: (r["role"], int(r["track_id"]))):
+    for row in sorted(report_players, key=lambda r: (r["role"], int(r["track_id"]))):
         prefix = "GK" if row["role"] == "goalkeeper" else "P"
         team = int(row["team_id"])
         player_data.append([
@@ -171,12 +197,12 @@ def generate_session_report(stem, destination=None, source_name=None):
             "Thủ môn" if prefix == "GK" else "Cầu thủ",
             "Chưa rõ" if team == 0 else f"Đội {team}",
             str(int(row["observed_frames"])),
-            str(int(row["possession_frames"])),
+            str(int(row["possession_frames"])) if possession_available else "-",
         ])
     if calibrated and not technical_demo and len(player_data) > 1:
         story.append(Paragraph("3. Chuyển động ước tính", heading))
         movement = [["Track ID", "Quãng đường (m)", "Tốc độ TB (km/h)", "Tốc độ cao nhất (km/h)"]]
-        for row in sorted(players, key=lambda r: (r["role"], int(r["track_id"]))):
+        for row in sorted(report_players, key=lambda r: (r["role"], int(r["track_id"]))):
             prefix = "GK" if row["role"] == "goalkeeper" else "P"
             movement.append([
                 prefix + str(row["track_id"]),
@@ -198,24 +224,28 @@ def generate_session_report(stem, destination=None, source_name=None):
 
     story.append(Paragraph("4. Tổng hợp theo đội", heading))
     team_data = [["Nhóm màu áo", "Số track", "Frame gán bóng", "% tổng frame"]]
-    for row in sorted(teams, key=lambda r: (int(r["team_id"]) == 0, int(r["team_id"]))):
+    for row in sorted((row for row in teams if str(row["team_id"]) in {"1", "2"}),
+                      key=lambda r: int(r["team_id"])):
         team = int(row["team_id"])
         team_data.append([
-            "Chưa rõ" if team == 0 else f"Đội {team}",
+            f"Đội {team}",
             str(int(row["tracked_people"])),
-            str(int(row["possession_frames"])),
-            _fmt(row["possession_pct_video"]) + "%",
+            str(int(row["possession_frames"])) if possession_available else "-",
+            _fmt(row["possession_pct_video"]) + "%" if possession_available else "Không đo được",
         ])
     story.append(_table(team_data, [125, 100, 130, 140], font))
     story.append(Paragraph(
-        "Đội 1 và đội 2 là ID cụm áo, chưa phải tên đội. Nhóm chưa rõ gồm frame "
-        "không gán bóng; số track không phải số người duy nhất.", muted))
+        f"Đội 1 và đội 2 là ID cụm áo, chưa phải tên đội. "
+        f"Có {int(unknown['possession_frames'])}/{frames} frame không gán bóng và "
+        f"{int(unknown['tracked_people'])} track không được xếp vào hai nhóm màu áo. "
+        "Số track không phải số người duy nhất. Dấu - nghĩa là không có "
+        "ước tính gán bóng đáng đọc từ clip này.", muted))
 
     heatmap = Path(base + "_heatmaps.png")
     heatmap_meta = Path(base + "_heatmaps_metadata.json")
     if frames >= 10 and heatmap.exists() and heatmap_meta.exists():
         mode = _load_json(heatmap_meta).get("coordinate_mode")
-        image = Image(str(heatmap), width=172 * mm, height=54 * mm, kind="proportional")
+        image = Image(str(heatmap), width=160 * mm, height=43 * mm, kind="proportional")
         caption = ("Tọa độ sân đã hiệu chỉnh" if mode == "calibrated_field"
                    else "Tọa độ ảnh chưa hiệu chỉnh")
         story.append(KeepTogether([
@@ -231,13 +261,16 @@ def generate_session_report(stem, destination=None, source_name=None):
 
     story.append(Paragraph("6. Số liệu theo track", heading))
     if len(player_data) == 1:
-        story.append(Paragraph("Không có track cầu thủ hoặc thủ môn trong video.", body))
+        story.append(Paragraph("Không có track nào được quan sát ít nhất 1 giây. "
+                               "Xem CSV để kiểm tra các track ngắn.", body))
     else:
         story.append(_table(player_data, [76, 89, 95, 100, 135], font))
     story.append(Paragraph(
         "Frame thấy là số frame track xuất hiện trong vùng camera, không phải thời gian thi đấu. "
         "Gán bóng là quy tắc gần bóng theo ảnh, không phải nhãn kiểm soát bóng đã xác minh. "
-        "Track ID chưa được nối thành danh tính cầu thủ.", muted))
+        "Frame bóng nội suy chỉ phục vụ hiển thị, không dùng để gán bóng. "
+        "Track ID chưa được nối thành danh tính cầu thủ. Bảng chỉ liệt kê track được quan sát "
+        "ít nhất 1 giây; CSV lưu toàn bộ track.", muted))
 
     if frames >= 10:
         story.append(Paragraph("7. Cách đọc báo cáo", heading))

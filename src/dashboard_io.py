@@ -139,6 +139,7 @@ def analysis_files(stem):
 def run_job(input_path, job, model_path, device, source_name=None, clip_info=None):
     """Call the same analysis pipeline used by main.py, then render charts."""
     from main import FootballAnalyzer
+    from config import YOLO_CONFIG
     from scripts.plot_csv_report import plot_csv_report
 
     stem = Path(job) / "analysis"
@@ -163,6 +164,9 @@ def run_job(input_path, job, model_path, device, source_name=None, clip_info=Non
         "model_path": str(Path(model_path).resolve()),
         "device": device,
         "source_name": Path(source_name or input_path.name).name,
+        "player_confidence_threshold": YOLO_CONFIG["confidence_threshold"],
+        "ball_confidence_threshold": YOLO_CONFIG["ball_confidence_threshold"],
+        "ball_assignment_direct_detection_only": True,
     }
     if clip_info is not None:
         run_metadata["clip"] = clip_info

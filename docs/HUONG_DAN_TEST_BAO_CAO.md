@@ -64,5 +64,7 @@ python -m pytest -q -m "not slow"
 - PDF không có quãng đường/tốc độ: đó là hành vi đúng khi chưa hiệu chỉnh sân hoặc clip được đánh dấu kiểm tra kỹ thuật.
 - Track ID nhiều hơn số người: tracker có thể sinh ID mới sau che khuất. Báo cáo hiện không ghép danh tính.
 - PDF ghi nhiều frame “chưa rõ”: kiểm tra phát hiện bóng và khoảng cách gán bóng trước khi diễn giải phần tương tác bóng.
+- Nếu bóng không được phát hiện hoặc không gán được cho đội nào, PDF và dashboard ghi **Không đo được** thay vì trình bày 0%/100% như tỷ lệ kiểm soát bóng. Ngưỡng bóng hiện là 0,25, riêng các lớp người vẫn là 0,5; cần đối chiếu video vì ngưỡng thấp có thể sinh phát hiện nhầm. Frame bóng nội suy chỉ hỗ trợ hiển thị, không tính là phát hiện trực tiếp và không dùng để gán bóng.
+- Bảng PDF chỉ hiện track xuất hiện ít nhất 1 giây; CSV giữ mọi track. Số track không phải số người duy nhất, đặc biệt khi có người ngoài sân hoặc cầu thủ bị mất dấu.
 
 Các file `output/`, `datasets/`, `runs/`, `stubs/` là dữ liệu hoặc kết quả cục bộ, được `.gitignore` loại khỏi commit. Repo GitHub chỉ chứa mã, tài liệu và số liệu/hình của thí nghiệm học thuật đã ghi nguồn.
