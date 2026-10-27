@@ -85,4 +85,5 @@ def test_no_ball_report_marks_possession_unavailable(tmp_path):
     content = " ".join(_text(generate_session_report(stem)).split())
     assert "Không có số liệu kiểm soát bóng hợp lệ" in content
     assert "Không đo được" in content
+    assert "Hai nhóm màu áo vẫn được phát hiện" in content
     assert "100.0%" not in content

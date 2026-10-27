@@ -64,6 +64,7 @@ python -m pytest -q -m "not slow"
 - PDF không có quãng đường/tốc độ: đó là hành vi đúng khi chưa hiệu chỉnh sân hoặc clip được đánh dấu kiểm tra kỹ thuật.
 - Track ID nhiều hơn số người: tracker có thể sinh ID mới sau che khuất. Báo cáo hiện không ghép danh tính.
 - PDF ghi nhiều frame “chưa rõ”: kiểm tra phát hiện bóng và khoảng cách gán bóng trước khi diễn giải phần tương tác bóng.
+- Sau khi cập nhật mã pipeline, **dừng hẳn tiến trình Streamlit rồi chạy lại**; tải lại trang trình duyệt không bảo đảm nạp lại các module Python đã import. Trong `output/dashboard_jobs/<mã_lượt>/dashboard_run.json`, bản mới ghi `ball_confidence_threshold: 0.25` và `ball_assignment_direct_detection_only: true`. Nếu thiếu hai trường này, báo cáo thuộc tiến trình cũ; hãy khởi động lại rồi phân tích lại video.
 - Nếu bóng không được phát hiện hoặc không gán được cho đội nào, PDF và dashboard ghi **Không đo được** thay vì trình bày 0%/100% như tỷ lệ kiểm soát bóng. Ngưỡng bóng hiện là 0,25, riêng các lớp người vẫn là 0,5; cần đối chiếu video vì ngưỡng thấp có thể sinh phát hiện nhầm. Frame bóng nội suy chỉ hỗ trợ hiển thị, không tính là phát hiện trực tiếp và không dùng để gán bóng.
 - Bảng PDF chỉ hiện track xuất hiện ít nhất 1 giây; CSV giữ mọi track. Số track không phải số người duy nhất, đặc biệt khi có người ngoài sân hoặc cầu thủ bị mất dấu.
 

@@ -42,12 +42,15 @@ def _show_job(job):
 
     teams = read_csv(files["teams"])
     players = read_csv(files["players"])
-    st.subheader("Thống kê mô tả")
+    st.subheader("Gán bóng theo đội")
+    st.caption(f"Đã phân nhóm màu áo: Đội 1 có {teams[0]['tracked_people']} track, "
+               f"Đội 2 có {teams[1]['tracked_people']} track. "
+               "Track không phải số cầu thủ duy nhất.")
     assigned_frames = sum(int(row["possession_frames"]) for row in teams
                           if row["team_id"] in {"1", "2"})
     if assigned_frames == 0:
-        st.warning("Không gán được bóng cho đội nào trong đoạn này. "
-                   "Chưa có số liệu kiểm soát bóng để hiển thị.")
+        st.warning("Đã chia được hai nhóm màu áo, nhưng không gán được bóng cho đội nào. "
+                   "'Không đo được' bên dưới chỉ nói về gán bóng, không phải phát hiện đội.")
     columns = st.columns(3)
     for col, row, title in zip(columns, teams, ("Đội 1", "Đội 2", "Không gán bóng")):
         col.metric(title, f"{float(row['possession_pct_video']):.1f}%"

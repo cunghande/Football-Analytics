@@ -240,6 +240,10 @@ def generate_session_report(stem, destination=None, source_name=None):
         f"{int(unknown['tracked_people'])} track không được xếp vào hai nhóm màu áo. "
         "Số track không phải số người duy nhất. Dấu - nghĩa là không có "
         "ước tính gán bóng đáng đọc từ clip này.", muted))
+    if not possession_available:
+        story.append(Paragraph(
+            "Hai nhóm màu áo vẫn được phát hiện; 'Không đo được' chỉ áp dụng cho việc gán bóng, "
+            "không có nghĩa hệ thống không nhận diện được đội.", body))
 
     heatmap = Path(base + "_heatmaps.png")
     heatmap_meta = Path(base + "_heatmaps_metadata.json")
