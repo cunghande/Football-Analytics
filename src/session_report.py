@@ -95,6 +95,8 @@ def generate_session_report(stem, destination=None, source_name=None):
     teams = _load_csv(base + "_teams.csv")
     metadata = _load_json(base + "_csv_metadata.json")
     summary = _load_json(base + "_summary.json")
+    role_path = Path(base + "_role_refinement.json")
+    role_metadata = _load_json(role_path) if role_path.exists() else {}
     run_path = stem.parent / "dashboard_run.json"
     run = _load_json(run_path) if run_path.exists() else {}
     demo_path = stem.parent / "dataset_demo_protocol.json"
@@ -138,6 +140,9 @@ def generate_session_report(stem, destination=None, source_name=None):
     facts = [
         ["Video", Paragraph(escape(source), body)],
         ["Model", Paragraph(escape(model_name), body)],
+        ["Vai trò", ("Áo vàng/quần tối hiếm + phiếu 5 quan sát (ước đoán)"
+                     if role_metadata.get("method") == "rare_yellow_kit_temporal_vote"
+                     else "Nhãn từ model theo từng frame")],
         ["Số frame", str(frames)],
         ["FPS", _fmt(fps, 2) + (" (giả định)" if technical_demo else "")],
         ["Thời lượng", "Không xác định" if technical_demo else _fmt(frames / fps, 1) + " giây"],
@@ -182,6 +187,8 @@ def generate_session_report(stem, destination=None, source_name=None):
         Paragraph(
             f"Có <b>{sum(row['role'] == 'player' for row in players)} track cầu thủ</b> "
             f"và <b>{sum(row['role'] == 'goalkeeper' for row in players)} track thủ môn</b>. "
+            + (f"Có {int(role_metadata['refined_referee_track_count'])} track từng được gán trọng tài; "
+               if role_metadata else "")
             + average_note + "một người có thể sinh nhiều track ID sau khi mất dấu. "
             + ball_message +
             f" Có {short_count} track xuất hiện dưới 1 giây; chúng vẫn được giữ trong CSV "

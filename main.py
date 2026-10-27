@@ -1,4 +1,5 @@
 import cv2
+import json
 import numpy as np
 import os
 import pickle
@@ -16,6 +17,7 @@ from src.csv_exporter import export_analysis_csv
 from src.spatial_visualizer import SpatialVisualizer
 from src.pass_map import detect_pass_candidates, save_pass_map
 from src.session_report import generate_session_report
+from src.role_refiner import refine_human_roles
 
 
 class FootballAnalyzer:
@@ -29,11 +31,13 @@ class FootballAnalyzer:
         device: str = YOLO_CONFIG["device"],
         read_from_stub: bool = VIDEO_CONFIG["read_from_stub"],
         stub_dir: str = VIDEO_CONFIG["stub_dir"],
+        role_refinement_enabled: bool = True,
     ):
         self.video_path = video_path
         self.output_path = output_path
         self.read_from_stub = read_from_stub
         self.stub_dir = stub_dir
+        self.role_refinement_enabled = role_refinement_enabled
 
         os.makedirs(self.stub_dir, exist_ok=True)
 
@@ -276,6 +280,13 @@ class FootballAnalyzer:
         self.speed_calculator.fps = fps
 
         tracks = self._build_tracks(video_frames)
+        role_metadata = refine_human_roles(video_frames, tracks,
+                                           enabled=self.role_refinement_enabled)
+        role_path = os.path.splitext(self.output_path)[0] + "_role_refinement.json"
+        os.makedirs(os.path.dirname(role_path) or ".", exist_ok=True)
+        with open(role_path, "w", encoding="utf-8") as handle:
+            json.dump(role_metadata, handle, ensure_ascii=False, indent=2)
+        print(f"Role refinement: {role_metadata['method']}; details: {role_path}")
         observed_ball_frames = sum(bool(frame) for frame in tracks["ball"])
         tracks["ball"] = self.tracker.interpolate_ball_tracks(tracks["ball"])
         self._add_position_to_tracks(tracks)

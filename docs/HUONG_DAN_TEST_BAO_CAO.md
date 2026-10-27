@@ -6,6 +6,8 @@ Sau khi phân tích một video, pipeline tạo `analysis_session_report.pdf` v�
 
 Khi chưa có bốn cặp điểm hiệu chỉnh sân trong `config.py`, PDF **không hiện mét và km/h**. Bảng theo track có thời gian nhìn thấy (giây), dịch chuyển vị trí chân trên ảnh (pixel), frame gán bóng, số đường chuyền ứng viên đi/đến. Pixel **không phải quãng đường chạy** vì camera di chuyển và phối cảnh. Đường chuyền ứng viên **chưa được xác minh thành công**; không có mẫu số tin cậy để tính tỷ lệ chuyền thành công. CSV vẫn có các cột ước tính mét/km/h từ hệ số cũ để kiểm tra công thức, nhưng không được đọc là số đo thực. Track ID có thể đổi khi mất dấu; số track không phải số người duy nhất. `possession_frames` là số frame được quy tắc gần bóng gán, không phải nhãn kiểm soát bóng đã xác minh.
 
+Nếu trọng tài mặc áo vàng/quần tối và kiểu trang phục này hiếm trong clip, tùy chọn **Sửa nhãn trọng tài áo vàng/quần tối** dùng vùng thân áo, vùng quần và 5 quan sát gần nhau để giảm nhảy nhãn `P`/`R`. Điều kiện quần tối giúp tránh gán thủ môn mặc cả bộ vàng thành trọng tài trên clip đã kiểm tra. Nếu một đội cũng mặc màu tương tự hoặc bằng chứng màu không đủ, hệ thống giữ nguyên nhãn model. Đây là quy tắc theo màu, **chưa phải nhận diện vai trò được xác minh**. Bỏ chọn tùy chọn này để so sánh với nhãn YOLO/ByteTrack ban đầu. ZIP có `analysis_role_refinement.json` ghi cách chạy và số quan sát đổi nhãn.
+
 ## Chạy với video thật
 
 1. Mở PowerShell tại thư mục repo. Cài dependency một lần:

@@ -9,6 +9,8 @@ Dashboard trong `dashboard.py` có hai tab:
 
 Dashboard chỉ là lớp giao diện quanh `FootballAnalyzer` trong `main.py`; các bước YOLO, ByteTrack, chia đội, gán bóng, đo chuyển động, CSV và heatmap vẫn dùng cùng mã như khi chạy `python main.py`. **Modal đã dùng để train YOLO; dashboard mặc định chạy suy luận trên máy đang mở Streamlit.** Checkpoint `runs/modal/detection_player_freeze10_v1/weights/best.pt` được chọn trước vì có điểm validation cao nhất trong ba thiết lập ở [báo cáo B](BAO_CAO_BUOC_B.md). Có thể chọn checkpoint fine-tune toàn bộ hoặc model gốc nếu tệp đã có trên máy; model gốc không tách riêng thủ môn/trọng tài.
 
+Giao diện có ô bật/tắt quy tắc ổn định `player`/`referee` khi áo trọng tài vàng/quần tối là kiểu trang phục hiếm trong clip. Quy tắc chạy sau ByteTrack và trước KMeans chia đội; nếu bằng chứng màu không đủ, giữ nhãn model. File `analysis_role_refinement.json` trong ZIP ghi trạng thái, điều kiện kích hoạt và số quan sát đổi nhãn. Đây là ước đoán vai trò, chưa có nhãn kiểm tra độc lập cho toàn clip.
+
 ```mermaid
 flowchart LR
     A[Upload clip] --> B[Kiểm tra kích thước, FPS, frame]

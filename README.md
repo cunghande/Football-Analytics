@@ -269,7 +269,7 @@ This repository is based on [alina-letzien/football-analytics](https://github.co
 | `detection-player` v4 dataset | FSDM on [Roboflow Universe](https://universe.roboflow.com/fsdm-olss1/detection-player/dataset/4), CC BY 4.0; cleaned and split by clip for this experiment |
 | Four-class YOLO fine-tuning | Added here; pretrained, `freeze=10`, and full fine-tune comparison on Modal |
 | Dataset audit and experimental figures | Added here; scripts in `scripts/`, reports and figures in `report/` |
-| Team assignment and role separation | Added here; 50 reviewed validation frames, 200 player samples, ablation results in step C |
+| Team assignment and role separation | Added here; 50 reviewed validation frames, 200 player samples, ablation results in step C. An optional rare-yellow referee rule reduces role flicker on the reviewed video and records its method in JSON. |
 | CSV export | Added here; player, team, possession timeline and method metadata. No real-video movement results yet. |
 | Heatmap/minimap | Added here; two explicit modes: calibrated field or normalized image space. Dataset illustration in step E. |
 | Streamlit | Added here; local video upload, annotated H.264 playback, charts/pass map, CSV tables, and downloadable report ZIP. |
@@ -286,5 +286,7 @@ python -m streamlit run dashboard.py
 ```
 
 Open `http://127.0.0.1:8501`. The default checkpoint is `runs/modal/detection_player_freeze10_v1/weights/best.pt` when present. Training was performed on Modal; the dashboard runs inference on this computer, using CPU or a detected local GPU. Browser uploads can be up to 500 MB; a same-machine file path can be used for larger recordings without loading the source file into Streamlit. Select a segment of up to 450 frames at 1280×720, or up to 900 frames at a lower resolution. The app keeps the decoded-pixel budget near the original 450-frame mode because the pipeline loads every frame into memory. The PDF and CSV describe only that segment, and the source interval is recorded in run metadata. Uploaded clips and job output are kept under ignored `output/dashboard_jobs/`. The downloadable ZIP contains CSV, figures, pass candidates, and method metadata; video playback uses a separate H.264 file. Without manual field calibration, distances and speeds remain approximate. Pass-map arrows are unverified candidates, not annotated events.
+
+For matches with referees in rare yellow shirts and dark shorts, the dashboard offers an optional color-based role correction. It is a heuristic, not verified role recognition, and it automatically retains model labels when the kit cue is ambiguous. Disable it for a direct model-output comparison or a match with a different referee kit.
 
 Each run also produces a printable `analysis_session_report.pdf`. The PDF shows per-track observation time, image-space foot displacement, ball-assigned frames, and unverified pass-candidate send/receive counts; it does not infer player names or rate performance. Pixel displacement is not running distance. Distance/speed in physical units are shown only when field coordinates have been manually calibrated. The video minimap overlay is smaller than the standalone minimap figure. See the [test guide](docs/HUONG_DAN_TEST_BAO_CAO.md).
