@@ -15,6 +15,7 @@ from src.pipeline_summary import compute_summary_stats, write_summary_json
 from src.csv_exporter import export_analysis_csv
 from src.spatial_visualizer import SpatialVisualizer
 from src.pass_map import detect_pass_candidates, save_pass_map
+from src.session_report import generate_session_report
 
 
 class FootballAnalyzer:
@@ -235,9 +236,9 @@ class FootballAnalyzer:
         cv2.rectangle(overlay, (20, 20), (360, 120), (255, 255, 255), -1)
         cv2.addWeighted(overlay, 0.45, output, 0.55, 0, output)
 
-        cv2.putText(output, f"Team 1 ball control: {100.0 * team_1 / total:.1f}%", (30, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-        cv2.putText(output, f"Team 2 ball control: {100.0 * team_2 / total:.1f}%", (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-        cv2.putText(output, f"Unknown: {100.0 * unknown / total:.1f}%", (30, 108), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        cv2.putText(output, f"T1 ball assigned: {100.0 * team_1 / total:.1f}%", (30, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        cv2.putText(output, f"T2 ball assigned: {100.0 * team_2 / total:.1f}%", (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        cv2.putText(output, f"Unassigned: {100.0 * unknown / total:.1f}%", (30, 108), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
         return output
 
     @staticmethod
@@ -361,7 +362,8 @@ class FootballAnalyzer:
             output = self._draw_team_ball_control(output, frame_num, team_ball_control)
             output_frames.append(output)
 
-        output_frames = self.speed_calculator.draw_speed_and_distance(output_frames, tracks)
+        if self.perspective.transformation_matrix is not None:
+            output_frames = self.speed_calculator.draw_speed_and_distance(output_frames, tracks)
         output_frames = [
             spatial.overlay_minimap(frame, {
                 role: tracks[role][frame_num]
@@ -370,17 +372,22 @@ class FootballAnalyzer:
             for frame_num, frame in enumerate(output_frames)
         ]
         self._save_video(output_frames, self.output_path, fps)
+        report_path = generate_session_report(stem, source_name=os.path.basename(self.video_path))
+        print(f"Session PDF saved: {report_path}")
 
         print(f"\nAnalysis complete! Output saved to: {self.output_path}")
         
         # Print statistics
-        self._print_statistics(tracks)
+        self._print_statistics(tracks, calibrated=self.perspective.transformation_matrix is not None)
     
-    def _print_statistics(self, tracks):
+    def _print_statistics(self, tracks, calibrated=False):
         """Print analysis statistics"""
         latest_players = tracks["players"][-1] if tracks["players"] else {}
         print("\n=== Analysis Statistics ===")
         print(f"Tracked players in final frame: {len(latest_players)}")
+        if not calibrated:
+            print("Distance/speed withheld: field coordinates are not calibrated.")
+            return
 
         latest_by_id = {}
         for frame_players in tracks["players"]:

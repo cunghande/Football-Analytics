@@ -59,6 +59,18 @@ def test_report_zip_excludes_videos(tmp_path):
     assert "analysis_heatmaps.pdf" in names
     assert "analysis_pass_candidates.csv" in names
     assert "analysis_pass_map.png" in names
+    assert "analysis_session_report.pdf" in names
     assert "dashboard_run.json" in names
     assert "analysis.mp4" not in names
     assert "analysis_browser.mp4" not in names
+
+
+def test_report_zip_keeps_technical_demo_protocol(tmp_path):
+    job = tmp_path / "job"
+    job.mkdir()
+    for path in analysis_files(job / "analysis").values():
+        path.write_bytes(b"demo")
+    (job / "dashboard_run.json").write_text("{}", encoding="utf-8")
+    (job / "dataset_demo_protocol.json").write_text('{"purpose":"technical_demo_only"}', encoding="utf-8")
+    with zipfile.ZipFile(create_report_zip(job)) as archive:
+        assert "dataset_demo_protocol.json" in archive.namelist()

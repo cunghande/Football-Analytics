@@ -54,6 +54,7 @@ output/*.pdf
 output/*.zip
 output/dashboard_jobs/
 output/docx_qa/
+output/report_qa/
 stubs/*.pkl
 runs/
 *.pt

@@ -2,7 +2,7 @@
 
 **Bài tập lớn phát triển từ [alina-letzien/football-analytics](https://github.com/alina-letzien/football-analytics) theo giấy phép MIT.** Mã gốc cung cấp pipeline YOLO, ByteTrack, phân cụm màu áo, gán bóng và ước tính chuyển động. Phần phát triển của bài làm gồm kiểm tra và chia dataset bốn lớp, fine-tune YOLO26x trên Modal, so sánh ba thiết lập, cải tiến chia đội, xuất CSV, heatmap/minimap, dashboard Streamlit và ứng viên đường chuyền. Nguồn ảnh là [FSDM detection-player v4](https://universe.roboflow.com/fsdm-olss1/detection-player/dataset/4), CC BY 4.0.
 
-**Báo cáo có thể nộp:** [bản Word](report/BAO_CAO_HOAN_CHINH.docx), [bản Markdown](report/BAO_CAO_HOAN_CHINH.md), [hình và dữ liệu thực nghiệm](report/), [hướng dẫn dataset](docs/DATASET_GUIDE.md). Các bảng và hình tách kết quả đo thực từ hình minh họa kỹ thuật. Chưa có video demo độc lập nên chưa có phép đo độ chính xác đầu cuối cho tracking, gán bóng, quãng đường và đường chuyền.
+**Báo cáo có thể nộp:** [bản Word](report/BAO_CAO_HOAN_CHINH.docx), [bản Markdown](report/BAO_CAO_HOAN_CHINH.md), [hình và dữ liệu thực nghiệm](report/), [hướng dẫn dataset](docs/DATASET_GUIDE.md). [Hướng dẫn chạy thử PDF buổi tập](docs/HUONG_DAN_TEST_BAO_CAO.md) mô tả đầu ra sinh tự động theo video. Các bảng và hình tách kết quả đo thực từ hình minh họa kỹ thuật. Chưa có video demo độc lập nên chưa có phép đo độ chính xác đầu cuối cho tracking, gán bóng, quãng đường và đường chuyền.
 
 Computer vision football analysis pipeline with YOLO, ByteTrack, OpenCV, and Python.
 
@@ -273,6 +273,7 @@ This repository is based on [alina-letzien/football-analytics](https://github.co
 | CSV export | Added here; player, team, possession timeline and method metadata. No real-video movement results yet. |
 | Heatmap/minimap | Added here; two explicit modes: calibrated field or normalized image space. Dataset illustration in step E. |
 | Streamlit | Added here; local video upload, annotated H.264 playback, charts/pass map, CSV tables, and downloadable report ZIP. |
+| Session PDF | Added here; automatically summarizes metrics by temporary track ID and team, without ratings. Uncalibrated distance and speed are hidden. |
 | Pass map (optional G) | Added here as an unverified same-team candidate heuristic; no pass labels or accuracy metrics yet. |
 
 See the [dataset guide](docs/DATASET_GUIDE.md), [step A report](report/BAO_CAO_BUOC_A.md), [step B report](report/BAO_CAO_BUOC_B.md), [step C report](report/BAO_CAO_BUOC_C.md), [step D report](report/BAO_CAO_BUOC_D.md), [step E report](report/BAO_CAO_BUOC_E.md), [step F report](report/BAO_CAO_BUOC_F.md), [step G report](report/BAO_CAO_BUOC_G.md), and [combined report outline](report/DE_CUONG_BAO_CAO.md). The reports include experimental protocols, figures, and limitations of the clip-level split. Large datasets and checkpoints remain local or in Modal Volumes and are excluded from Git.
@@ -285,3 +286,5 @@ python -m streamlit run dashboard.py
 ```
 
 Open `http://127.0.0.1:8501`. The default checkpoint is `runs/modal/detection_player_freeze10_v1/weights/best.pt` when present. Training was performed on Modal; the dashboard runs inference on this computer, using CPU or a detected local GPU. It accepts clips up to 100 MB, 450 frames, and 1280×720 because the pipeline loads every frame into memory. Uploaded clips and job output are kept under ignored `output/dashboard_jobs/`. The downloadable ZIP contains CSV, figures, pass candidates, and method metadata; video playback uses a separate H.264 file. Without manual field calibration, distances and speeds remain approximate. Pass-map arrows are unverified candidates, not annotated events.
+
+Each run also produces a printable `analysis_session_report.pdf`. The PDF shows track IDs, observation counts and ball-assignment counts; it does not infer player names or rate performance. Distance/speed are shown only when field coordinates have been manually calibrated. See the [test guide](docs/HUONG_DAN_TEST_BAO_CAO.md).

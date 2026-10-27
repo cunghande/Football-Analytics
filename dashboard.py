@@ -1,5 +1,6 @@
 """Local Streamlit interface for the existing football analysis pipeline."""
 
+import json
 from pathlib import Path
 
 import streamlit as st
@@ -42,10 +43,15 @@ def _show_job(job):
     for col, row, title in zip(columns, teams, ("Đội 1", "Đội 2", "Chưa rõ đội")):
         col.metric(title, f"{float(row['possession_pct_video']):.1f}%")
     st.caption("Tỷ lệ frame được gán bóng, không phải nhãn kiểm soát bóng chuẩn. Hai đội là ID cụm màu áo.")
-    st.image(str(files["chart"]), caption="Gán bóng theo frame và quãng đường ước tính của các track.")
+    st.image(str(files["chart"]), caption="Gán bóng theo frame và mức quan sát track; quãng đường chỉ hiện khi đã hiệu chỉnh sân.")
     st.image(str(files["heatmaps"]), caption="Mật độ vị trí quan sát; xem metadata để biết chế độ tọa độ.")
     st.image(str(files["pass_map"]), caption="Đường chuyền ứng viên theo quy tắc; chưa có nhãn chuẩn để xác nhận.")
     st.image(str(files["minimap"]), caption="Minimap của frame cuối.", width=480)
+    if files["session_report"].exists():
+        st.download_button("Tải báo cáo buổi tập (PDF)",
+                           data=files["session_report"].read_bytes(),
+                           file_name="bao_cao_buoi_tap.pdf", mime="application/pdf")
+        st.caption("Báo cáo theo track ID tạm thời; chỉ hiển thị chỉ số, không chấm điểm cầu thủ.")
     with st.expander("Bảng dữ liệu cầu thủ và đội"):
         st.dataframe(teams, width="stretch")
         st.dataframe(players, width="stretch")
@@ -77,14 +83,21 @@ def _video_tab():
     device = st.selectbox("Thiết bị suy luận", _device_options())
     uploaded = st.file_uploader("Video bóng đá", type=["mp4", "mov", "avi", "mkv"],
                                 max_upload_size=100)
+    technical_only = st.checkbox("Clip ghép từ ảnh hoặc FPS giả định - chỉ kiểm tra kỹ thuật")
     if st.button("Phân tích video", type="primary", disabled=uploaded is None):
         try:
             with st.spinner("Đang xử lý video và tạo báo cáo. Clip CPU có thể mất vài phút..."):
                 job, input_path = create_job(uploaded, ROOT / "output/dashboard_jobs")
                 details = probe_video(input_path)
+                if technical_only:
+                    (job / "dataset_demo_protocol.json").write_text(json.dumps({
+                        "purpose": "technical_demo_only",
+                        "warning": "FPS hoặc thứ tự thời gian chưa được xác minh; không dùng làm số liệu buổi tập.",
+                    }, ensure_ascii=False, indent=2), encoding="utf-8")
                 st.write(f"Đầu vào: {details['frames']} frame, {details['fps']:.2f} FPS, "
                          f"{details['width']}×{details['height']} pixel.")
-                run_job(input_path, job, available[checkpoint_name], device)
+                run_job(input_path, job, available[checkpoint_name], device,
+                        source_name=uploaded.name)
                 st.session_state["dashboard_job"] = str(job)
                 st.session_state["dashboard_source"] = uploaded.name
             st.success("Đã hoàn thành phân tích.")

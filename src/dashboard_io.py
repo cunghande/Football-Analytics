@@ -95,10 +95,11 @@ def analysis_files(stem):
         "pass_map": Path(base + "_pass_map.png"),
         "pass_map_pdf": Path(base + "_pass_map.pdf"),
         "pass_map_metadata": Path(base + "_pass_map_metadata.json"),
+        "session_report": Path(base + "_session_report.pdf"),
     }
 
 
-def run_job(input_path, job, model_path, device):
+def run_job(input_path, job, model_path, device, source_name=None):
     """Call the same analysis pipeline used by main.py, then render charts."""
     from main import FootballAnalyzer
     from scripts.plot_csv_report import plot_csv_report
@@ -115,7 +116,7 @@ def run_job(input_path, job, model_path, device):
     analyzer.analyze_video()
     files = analysis_files(stem)
     needed = ("raw_video", "players", "teams", "timeline", "heatmaps", "minimap",
-              "pass_candidates", "pass_map")
+              "pass_candidates", "pass_map", "session_report")
     missing = [key for key in needed if not files[key].exists()]
     if missing:
         raise RuntimeError(f"Pipeline chưa tạo đủ kết quả: {', '.join(missing)}")
@@ -124,10 +125,12 @@ def run_job(input_path, job, model_path, device):
     run_metadata = {
         "model_path": str(Path(model_path).resolve()),
         "device": device,
-        "source_name": Path(input_path).name,
+        "source_name": Path(source_name or input_path.name).name,
     }
     (Path(job) / "dashboard_run.json").write_text(
         json.dumps(run_metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    from src.session_report import generate_session_report
+    generate_session_report(stem)
     return files
 
 
@@ -142,6 +145,9 @@ def create_report_zip(job):
     files = analysis_files(job / "analysis")
     include = [path for key, path in files.items() if key not in ("video", "raw_video")]
     include.append(job / "dashboard_run.json")
+    protocol = job / "dataset_demo_protocol.json"
+    if protocol.exists():
+        include.append(protocol)
     missing = [path.name for path in include if not path.exists()]
     if missing:
         raise FileNotFoundError(f"Thiếu tệp báo cáo: {', '.join(missing)}")

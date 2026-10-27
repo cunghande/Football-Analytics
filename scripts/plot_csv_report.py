@@ -2,7 +2,9 @@
 
 import argparse
 import csv
+import json
 import os
+from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
@@ -17,6 +19,9 @@ def _read(path):
 def plot_csv_report(stem):
     people = _read(stem + "_players.csv")
     teams = _read(stem + "_teams.csv")
+    metadata = json.loads(Path(stem + "_csv_metadata.json").read_text(encoding="utf-8"))
+    show_movement = (metadata.get("coordinate_method") == "four_point_field_homography"
+                     and not (Path(stem).parent / "dataset_demo_protocol.json").exists())
     labels = {"1": "Team 1", "2": "Team 2", "0": "Unknown"}
     team_by_id = {row["team_id"]: row for row in teams}
     for team_id in labels:
@@ -34,21 +39,23 @@ def plot_csv_report(stem):
     for x, value in enumerate(possession):
         axes[0].text(x, value + 1.2, f"{value:.1f}%", ha="center", fontsize=9)
 
+    metric = "distance_m_estimate" if show_movement else "observed_frames"
     ranked = sorted(
-        (row for row in people if row["distance_m_estimate"] != ""),
-        key=lambda row: float(row["distance_m_estimate"]), reverse=True,
+        (row for row in people if row[metric] != ""),
+        key=lambda row: float(row[metric]), reverse=True,
     )[:10]
     if ranked:
         names = [f"{row['role']} {row['track_id']}" for row in ranked][::-1]
-        distances = [float(row["distance_m_estimate"]) for row in ranked][::-1]
-        axes[1].barh(names, distances, color="#478c70")
-        axes[1].set_xlabel("Estimated distance (m)")
+        values = [float(row[metric]) for row in ranked][::-1]
+        axes[1].barh(names, values, color="#478c70")
+        axes[1].set_xlabel("Estimated distance (m)" if show_movement else "Observed frames")
     else:
         axes[1].text(0.5, 0.5, "No measured tracks", ha="center", va="center",
                      transform=axes[1].transAxes)
         axes[1].set_xticks([])
         axes[1].set_yticks([])
-    axes[1].set_title("Top tracked people by estimated distance")
+    axes[1].set_title("Top tracks by estimated distance" if show_movement
+                      else "Top tracks by observed frames")
     fig.suptitle("Descriptive video statistics (not ground-truth performance)", fontsize=11)
     paths = [stem + "_report_chart.png", stem + "_report_chart.pdf"]
     for path in paths:
