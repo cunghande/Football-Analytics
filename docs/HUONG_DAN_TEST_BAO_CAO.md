@@ -59,6 +59,7 @@ python -m pytest -q -m "not slow"
 ```
 
 - `Chưa tìm thấy checkpoint`: kiểm tra `best.pt` theo bước 2, hoặc chọn model gốc để kiểm tra giao diện; model gốc không tách thủ môn/trọng tài.
+- `WinError 4551` khi tải `torch_python.dll` trong `venv`: Windows Application Control đang chặn thư viện đó. Thoát `venv` bằng `deactivate`, rồi chạy `python -m streamlit run dashboard.py` với Python hệ thống đã được kiểm tra trên máy này. Không tắt chính sách bảo vệ Windows để chạy thử.
 - `Video thiếu frame hoặc metadata FPS`: xuất lại video với FPS cố định và codec thông dụng, rồi tải lại.
 - PDF không có quãng đường/tốc độ: đó là hành vi đúng khi chưa hiệu chỉnh sân hoặc clip được đánh dấu kiểm tra kỹ thuật.
 - Track ID nhiều hơn số người: tracker có thể sinh ID mới sau che khuất. Báo cáo hiện không ghép danh tính.

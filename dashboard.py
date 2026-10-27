@@ -22,9 +22,9 @@ CHECKPOINTS = {
 def _device_options():
     try:
         import torch
-        return ["0", "cpu"] if torch.cuda.is_available() else ["cpu"]
-    except ImportError:
-        return ["cpu"]
+        return (["0", "cpu"] if torch.cuda.is_available() else ["cpu"]), None
+    except (ImportError, OSError) as exc:
+        return ["cpu"], f"PyTorch không tải được trong Python hiện tại: {exc}"
 
 
 def _show_job(job):
@@ -80,11 +80,17 @@ def _video_tab():
     checkpoint_name = st.selectbox("Checkpoint", list(available))
     if checkpoint_name == "Model gốc COCO":
         st.warning("Model gốc không dự đoán riêng goalkeeper/referee; báo cáo vai trò sẽ thiếu.")
-    device = st.selectbox("Thiết bị suy luận", _device_options())
+    devices, torch_error = _device_options()
+    device = st.selectbox("Thiết bị suy luận", devices)
+    if torch_error:
+        st.error(torch_error)
+        st.caption("Nếu Windows chặn torch_python.dll trong venv, hãy thoát venv rồi chạy "
+                   "dashboard bằng Python hệ thống đã cài PyTorch.")
     uploaded = st.file_uploader("Video bóng đá", type=["mp4", "mov", "avi", "mkv"],
                                 max_upload_size=100)
     technical_only = st.checkbox("Clip ghép từ ảnh hoặc FPS giả định - chỉ kiểm tra kỹ thuật")
-    if st.button("Phân tích video", type="primary", disabled=uploaded is None):
+    if st.button("Phân tích video", type="primary",
+                 disabled=uploaded is None or torch_error is not None):
         try:
             with st.spinner("Đang xử lý video và tạo báo cáo. Clip CPU có thể mất vài phút..."):
                 job, input_path = create_job(uploaded, ROOT / "output/dashboard_jobs")
