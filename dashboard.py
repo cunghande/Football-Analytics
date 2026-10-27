@@ -7,7 +7,7 @@ import streamlit as st
 
 from src.dashboard_io import (
     MAX_FRAMES, MAX_UPLOAD_BYTES, analysis_files, create_academic_zip,
-    create_job, create_report_zip, probe_video, read_csv, run_job,
+    create_job, create_report_zip, prepare_analysis_clip, probe_video, read_csv, run_job,
 )
 
 
@@ -22,9 +22,12 @@ CHECKPOINTS = {
 def _device_options():
     try:
         import torch
-        return (["0", "cpu"] if torch.cuda.is_available() else ["cpu"]), None
+        if torch.cuda.is_available():
+            name = torch.cuda.get_device_name(0)
+            return {f"GPU 0 — {name} (khuyến nghị)": "0", "CPU": "cpu"}, None
+        return {"CPU": "cpu"}, None
     except (ImportError, OSError) as exc:
-        return ["cpu"], f"PyTorch không tải được trong Python hiện tại: {exc}"
+        return {"CPU": "cpu"}, f"PyTorch không tải được trong Python hiện tại: {exc}"
 
 
 def _show_job(job):
@@ -71,8 +74,9 @@ def _show_job(job):
 
 def _video_tab():
     st.write("Tải một clip ngắn để chạy YOLO, ByteTrack, chia đội và xuất báo cáo trên máy này.")
-    st.caption(f"Giới hạn: {MAX_UPLOAD_BYTES // (1024 * 1024)} MB, {MAX_FRAMES} frame, 1280×720. "
-               "Pipeline hiện nạp toàn bộ frame vào RAM.")
+    st.caption(f"Tệp tải lên tối đa {MAX_UPLOAD_BYTES // (1024 * 1024)} MB. "
+               f"Dashboard tự lấy tối đa {MAX_FRAMES} frame liên tiếp và thu về tối đa 1280×720; "
+               "báo cáo chỉ tính cho đoạn đã phân tích.")
     available = {label: path for label, path in CHECKPOINTS.items() if path.is_file()}
     if not available:
         st.error("Chưa tìm thấy checkpoint. Hãy tải best.pt từ kết quả Modal vào runs/modal/ hoặc đặt yolo26x.pt tại thư mục gốc.")
@@ -81,20 +85,33 @@ def _video_tab():
     if checkpoint_name == "Model gốc COCO":
         st.warning("Model gốc không dự đoán riêng goalkeeper/referee; báo cáo vai trò sẽ thiếu.")
     devices, torch_error = _device_options()
-    device = st.selectbox("Thiết bị suy luận", devices)
+    device_label = st.selectbox("Thiết bị suy luận", list(devices))
+    device = devices[device_label]
+    if len(devices) == 1 and not torch_error:
+        st.caption("Python hiện tại không nhận GPU CUDA; dashboard dùng CPU. GPU Modal chỉ dùng lúc huấn luyện.")
     if torch_error:
         st.error(torch_error)
         st.caption("Nếu Windows chặn torch_python.dll trong venv, hãy thoát venv rồi chạy "
                    "dashboard bằng Python hệ thống đã cài PyTorch.")
     uploaded = st.file_uploader("Video bóng đá", type=["mp4", "mov", "avi", "mkv"],
                                 max_upload_size=100)
+    start_seconds = st.number_input("Bắt đầu phân tích từ giây thứ", min_value=0.0,
+                                    value=0.0, step=1.0)
     technical_only = st.checkbox("Clip ghép từ ảnh hoặc FPS giả định - chỉ kiểm tra kỹ thuật")
     if st.button("Phân tích video", type="primary",
                  disabled=uploaded is None or torch_error is not None):
         try:
             with st.spinner("Đang xử lý video và tạo báo cáo. Clip CPU có thể mất vài phút..."):
                 job, input_path = create_job(uploaded, ROOT / "output/dashboard_jobs")
-                details = probe_video(input_path)
+                original = probe_video(input_path, enforce_limits=False)
+                analysis_input, clip_info = prepare_analysis_clip(
+                    input_path, job, original, start_seconds=start_seconds)
+                details = probe_video(analysis_input)
+                if clip_info:
+                    st.info(f"Chỉ phân tích đoạn {clip_info['start_seconds']:.1f}–"
+                            f"{clip_info['end_seconds']:.1f} giây; "
+                            f"{details['frames']} frame, {details['width']}×{details['height']} pixel. "
+                            "Các chỉ số trong báo cáo thuộc đoạn này, không thuộc cả video gốc.")
                 if technical_only:
                     (job / "dataset_demo_protocol.json").write_text(json.dumps({
                         "purpose": "technical_demo_only",
@@ -102,8 +119,8 @@ def _video_tab():
                     }, ensure_ascii=False, indent=2), encoding="utf-8")
                 st.write(f"Đầu vào: {details['frames']} frame, {details['fps']:.2f} FPS, "
                          f"{details['width']}×{details['height']} pixel.")
-                run_job(input_path, job, available[checkpoint_name], device,
-                        source_name=uploaded.name)
+                run_job(analysis_input, job, available[checkpoint_name], device,
+                        source_name=uploaded.name, clip_info=clip_info)
                 st.session_state["dashboard_job"] = str(job)
                 st.session_state["dashboard_source"] = uploaded.name
             st.success("Đã hoàn thành phân tích.")

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from src.dashboard_io import (
-    analysis_files, create_job, create_report_zip, probe_video,
+    analysis_files, create_job, create_report_zip, prepare_analysis_clip, probe_video,
     transcode_for_browser,
 )
 
@@ -43,6 +43,26 @@ def test_probe_and_browser_transcode(tmp_path):
     browser = transcode_for_browser(source, tmp_path / "clip_browser.mp4")
     assert browser.stat().st_size > 0
     assert cv2.VideoCapture(str(browser)).isOpened()
+
+
+def test_long_video_selects_real_segment(tmp_path, monkeypatch):
+    import src.dashboard_io as dashboard_io
+
+    monkeypatch.setattr(dashboard_io, "MAX_FRAMES", 10)
+    source = tmp_path / "long.mp4"
+    writer = cv2.VideoWriter(str(source), cv2.VideoWriter_fourcc(*"mp4v"),
+                             10.0, (64, 48))
+    assert writer.isOpened()
+    for index in range(20):
+        writer.write(np.full((48, 64, 3), index * 10, dtype=np.uint8))
+    writer.release()
+    original = probe_video(source, enforce_limits=False)
+    selected, clip = prepare_analysis_clip(source, tmp_path, original, start_seconds=0.5)
+    analyzed = probe_video(selected)
+    assert analyzed["frames"] == 10
+    assert analyzed["fps"] == pytest.approx(10)
+    assert clip["start_seconds"] == 0.5
+    assert clip["end_seconds"] == pytest.approx(1.5)
 
 
 def test_report_zip_excludes_videos(tmp_path):

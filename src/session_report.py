@@ -141,6 +141,11 @@ def generate_session_report(stem, destination=None, source_name=None):
         ["Thời lượng", "Không xác định" if technical_demo else _fmt(frames / fps, 1) + " giây"],
         ["Tọa độ", "Sân đã hiệu chỉnh thủ công" if calibrated else "Ảnh, chưa hiệu chỉnh sân"],
     ]
+    clip = run.get("clip")
+    if clip:
+        facts.insert(1, ["Đoạn phân tích",
+                         f"{_fmt(clip['start_seconds'], 1)}–{_fmt(clip['end_seconds'], 1)} giây "
+                         "của video gốc; các chỉ số chỉ thuộc đoạn này"])
     story.extend([Paragraph("1. Thông tin đầu vào", heading),
                   _table(facts, [95, 400], font, header=False)])
 

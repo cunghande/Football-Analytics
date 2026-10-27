@@ -35,7 +35,7 @@ def create_job(uploaded, jobs_root="output/dashboard_jobs"):
     return job, input_path
 
 
-def probe_video(path):
+def probe_video(path, *, enforce_limits=True):
     """Validate a small clip before a memory-heavy full pipeline run."""
     capture = cv2.VideoCapture(str(path))
     try:
@@ -48,14 +48,51 @@ def probe_video(path):
         ok, _ = capture.read()
         if not ok or fps <= 0 or frames <= 0 or width <= 0 or height <= 0:
             raise ValueError("Video thiếu frame hoặc metadata FPS/kích thước hợp lệ.")
-        if frames > MAX_FRAMES:
+        if enforce_limits and frames > MAX_FRAMES:
             raise ValueError(f"Video tối đa {MAX_FRAMES} frame; hãy cắt clip ngắn hơn.")
-        if width * height > MAX_FRAME_PIXELS:
+        if enforce_limits and width * height > MAX_FRAME_PIXELS:
             raise ValueError("Video tối đa 1280×720 pixel; hãy giảm độ phân giải.")
         return {"fps": fps, "frames": frames, "width": width, "height": height,
                 "duration_seconds": frames / fps}
     finally:
         capture.release()
+
+
+def prepare_analysis_clip(source, job, details, start_seconds=0.0):
+    """Select a bounded, real-time segment while preserving source FPS."""
+    from imageio_ffmpeg import get_ffmpeg_exe
+
+    fps = details["fps"]
+    duration = details["duration_seconds"]
+    if not 0 <= start_seconds < duration:
+        raise ValueError("Thời điểm bắt đầu phải nằm trong thời lượng video.")
+    needs_clip = (start_seconds > 0 or details["frames"] > MAX_FRAMES
+                  or details["width"] * details["height"] > MAX_FRAME_PIXELS)
+    if not needs_clip:
+        return Path(source), None
+
+    scale = min(1.0, 1280 / details["width"], 720 / details["height"])
+    width = max(2, int(details["width"] * scale) // 2 * 2)
+    height = max(2, int(details["height"] * scale) // 2 * 2)
+    destination = Path(job) / "analysis_input.mp4"
+    command = [get_ffmpeg_exe(), "-y", "-hide_banner", "-loglevel", "error",
+               "-i", str(source), "-ss", f"{start_seconds:.6f}", "-an",
+               "-frames:v", str(MAX_FRAMES), "-vf", f"scale={width}:{height}",
+               "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+               "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(destination)]
+    subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    processed = probe_video(destination)
+    clip_info = {
+        "source_frames": details["frames"],
+        "source_width": details["width"],
+        "source_height": details["height"],
+        "start_seconds": start_seconds,
+        "end_seconds": start_seconds + processed["duration_seconds"],
+        "analyzed_frames": processed["frames"],
+        "analyzed_width": processed["width"],
+        "analyzed_height": processed["height"],
+    }
+    return destination, clip_info
 
 
 def transcode_for_browser(source, destination):
@@ -99,7 +136,7 @@ def analysis_files(stem):
     }
 
 
-def run_job(input_path, job, model_path, device, source_name=None):
+def run_job(input_path, job, model_path, device, source_name=None, clip_info=None):
     """Call the same analysis pipeline used by main.py, then render charts."""
     from main import FootballAnalyzer
     from scripts.plot_csv_report import plot_csv_report
@@ -127,6 +164,8 @@ def run_job(input_path, job, model_path, device, source_name=None):
         "device": device,
         "source_name": Path(source_name or input_path.name).name,
     }
+    if clip_info is not None:
+        run_metadata["clip"] = clip_info
     (Path(job) / "dashboard_run.json").write_text(
         json.dumps(run_metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     from src.session_report import generate_session_report

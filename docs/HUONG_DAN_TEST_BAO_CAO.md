@@ -28,7 +28,7 @@ Khi chưa có bốn cặp điểm hiệu chỉnh sân trong `config.py`, PDF **k
    python -m streamlit run dashboard.py
    ```
 
-   Mở `http://127.0.0.1:8501`. Chọn checkpoint `Fine-tune freeze=10`, thiết bị `cpu` nếu máy không có GPU. Upload MP4/MOV/AVI/MKV ngắn (tối đa 100 MB, 450 frame, 1280×720; video phải có FPS hợp lệ). Với video thật, **không chọn** ô “Clip ghép từ ảnh hoặc FPS giả định”. Bấm **Phân tích video**.
+   Mở `http://127.0.0.1:8501`. Chọn checkpoint `Fine-tune freeze=10`. Trên máy đã nhận CUDA, chọn `GPU 0 — NVIDIA GeForce RTX 3050 ... (khuyến nghị)`; nếu mục này không hiện, thoát `venv` và khởi động dashboard bằng Python hệ thống. Upload MP4/MOV/AVI/MKV tối đa 100 MB, có FPS hợp lệ. Nếu video dài hoặc lớn hơn 1280×720, dashboard tự lấy tối đa 450 frame liên tiếp và thu nhỏ ảnh; có thể chọn giây bắt đầu. Với video thật, **không chọn** ô “Clip ghép từ ảnh hoặc FPS giả định”. Bấm **Phân tích video**. PDF/CSV chỉ mô tả đoạn đã phân tích, không phải toàn bộ video nguồn.
 
 4. Kiểm tra video kết quả, sau đó tải **Báo cáo buổi tập (PDF)** và **báo cáo phân tích (ZIP)**. Trong PDF, đối chiếu số frame/FPS với video. Mở CSV trong ZIP để kiểm tra các số gốc. Nếu tỷ lệ frame phát hiện bóng thấp hoặc frame “chưa rõ” cao, phần gán bóng cần xem lại trên video.
 
