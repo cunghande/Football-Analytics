@@ -52,3 +52,24 @@ def test_csv_totals_unknown_frames_and_fps(tmp_path):
 def test_csv_requires_aligned_frame_counts(tmp_path):
     with pytest.raises(ValueError, match="possession arrays"):
         export_analysis_csv({"players": [{}]}, [], [0], 30, str(tmp_path / "x"))
+
+
+def test_player_image_motion_and_unverified_pass_counts(tmp_path):
+    tracks = {"players": [
+        {7: {"position": (0, 0), "team": 1}},
+        {7: {"position": (3, 4), "team": 1}},
+        {},
+        {7: {"position": (30, 40), "team": 1},
+         8: {"position": (40, 40), "team": 1}},
+    ], "goalkeepers": [{}, {}, {}, {}]}
+    paths = export_analysis_csv(
+        tracks, [None] * 4, [0] * 4, 2, str(tmp_path / "analysis"),
+        pass_events=[{"from_track_id": 7, "to_track_id": 8}],
+    )
+    rows = {int(row["track_id"]): row for row in _read(paths["players"])}
+    assert float(rows[7]["observed_seconds"]) == 1.5
+    assert float(rows[7]["observed_path_px"]) == 5.0
+    assert float(rows[7]["mean_observed_motion_px_s"]) == 10.0
+    assert rows[7]["pass_candidate_sent"] == "1"
+    assert rows[8]["pass_candidate_received"] == "1"
+    assert rows[8]["observed_path_px"] == ""

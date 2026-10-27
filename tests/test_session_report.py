@@ -17,6 +17,8 @@ def _fixture(tmp_path, *, calibrated=False):
     stem = tmp_path / "analysis"
     _csv(tmp_path / "analysis_players.csv", [{
         "role": "player", "track_id": "7", "team_id": "1", "observed_frames": "3",
+        "observed_seconds": "1.5", "observed_path_px": "42.5",
+        "pass_candidate_sent": "1", "pass_candidate_received": "0",
         "possession_frames": "2", "distance_m_estimate": "99999",
         "mean_speed_kmh_estimate": "5.5", "max_speed_kmh_estimate": "8.0",
     }])
@@ -53,6 +55,9 @@ def test_uncalibrated_report_hides_false_precision_and_has_track_data(tmp_path):
     assert "P7" in content
     assert "99999" not in content
     assert "chấm điểm" in content
+    assert "42.5" in content
+    assert "ứng viên" in content
+    assert "chưa kiểm chứng thành công" in content
 
 
 def test_calibrated_report_includes_estimated_movement(tmp_path):

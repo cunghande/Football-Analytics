@@ -188,16 +188,19 @@ def generate_session_report(stem, destination=None, source_name=None):
             "nhưng không đưa vào bảng PDF." + role_note, body),
         ])
 
-    player_data = [["Track ID", "Vai trò", "Đội", "Frame thấy", "Gán bóng\n(frame)"]]
+    player_data = [["Track ID", "Đội", "Thấy (s)", "Dịch chuyển\nảnh (px)",
+                    "Gán bóng\n(frame)", "Chuyền\nứng viên", "Nhận\nứng viên"]]
     for row in sorted(report_players, key=lambda r: (r["role"], int(r["track_id"]))):
         prefix = "GK" if row["role"] == "goalkeeper" else "P"
         team = int(row["team_id"])
         player_data.append([
             prefix + str(row["track_id"]),
-            "Thủ môn" if prefix == "GK" else "Cầu thủ",
             "Chưa rõ" if team == 0 else f"Đội {team}",
-            str(int(row["observed_frames"])),
+            "-" if technical_demo else _fmt(row.get("observed_seconds") or int(row["observed_frames"]) / fps),
+            _fmt(row["observed_path_px"]) if row.get("observed_path_px") and not technical_demo else "-",
             str(int(row["possession_frames"])) if possession_available else "-",
+            (str(int(row["pass_candidate_sent"])) if row.get("pass_candidate_sent") and not technical_demo else "-"),
+            (str(int(row["pass_candidate_received"])) if row.get("pass_candidate_received") and not technical_demo else "-"),
         ])
     if calibrated and not technical_demo and len(player_data) > 1:
         story.append(Paragraph("3. Chuyển động ước tính", heading))
@@ -268,9 +271,14 @@ def generate_session_report(stem, destination=None, source_name=None):
         story.append(Paragraph("Không có track nào được quan sát ít nhất 1 giây. "
                                "Xem CSV để kiểm tra các track ngắn.", body))
     else:
-        story.append(_table(player_data, [76, 89, 95, 100, 135], font))
+        story.append(_table(player_data, [62, 66, 67, 75, 85, 70, 70], font))
     story.append(Paragraph(
-        "Frame thấy là số frame track xuất hiện trong vùng camera, không phải thời gian thi đấu. "
+        "Thấy (s) là tổng số frame quan sát chia FPS, không phải thời gian thi đấu. "
+        "Dịch chuyển ảnh là tổng khoảng cách giữa các vị trí chân ở những frame liên tiếp, "
+        "đơn vị pixel; camera di chuyển và phối cảnh làm sai lệch, nên đây không phải quãng đường chạy. "
+        "Chuyền/Nhận ứng viên là số sự kiện cùng đội theo quy tắc, chưa kiểm chứng thành công bằng nhãn thủ công. "
+        "Dấu - nghĩa là chưa đủ dữ liệu hoặc clip kiểm tra kỹ thuật không cho phép diễn giải chỉ số. "
+        "P là track lớp player; GK là track lớp goalkeeper. "
         "Gán bóng là quy tắc gần bóng theo ảnh, không phải nhãn kiểm soát bóng đã xác minh. "
         "Frame bóng nội suy chỉ phục vụ hiển thị, không dùng để gán bóng. "
         "Track ID chưa được nối thành danh tính cầu thủ. Bảng chỉ liệt kê track được quan sát "

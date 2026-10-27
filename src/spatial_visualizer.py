@@ -108,8 +108,8 @@ class SpatialVisualizer:
     def overlay_minimap(self, frame, frame_tracks):
         """Place minimap in lower-right without changing video frame dimensions."""
         height, width = frame.shape[:2]
-        map_width = min(320, max(100, width // 3))
-        map_height = min(210, max(75, round(map_width * 210 / 320)))
+        map_width = min(220, max(80, round(width * 0.18)))
+        map_height = max(52, round(map_width * 210 / 320))
         if map_width + 12 > width or map_height + 12 > height:
             return frame.copy()
         canvas = self.minimap_canvas(frame_tracks, map_width, map_height)

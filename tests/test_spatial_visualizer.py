@@ -39,3 +39,6 @@ def test_calibrated_minimap_uses_field_position():
     assert result.shape == frame.shape
     assert np.any(result != frame)
     assert not np.any(frame)
+    changed_y, changed_x = np.where(np.any(result != frame, axis=2))
+    assert changed_x.min() >= 640 - 220 - 12
+    assert changed_y.min() >= 360 - 145 - 12

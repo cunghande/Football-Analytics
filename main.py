@@ -341,24 +341,25 @@ class FootballAnalyzer:
                                               observed_ball_frames=observed_ball_frames)
         summary_path = os.path.splitext(self.output_path)[0] + "_summary.json"
         write_summary_json(summary_stats, summary_path)
-        csv_paths = export_analysis_csv(
-            tracks, possession_owner_ids, team_ball_control, fps,
-            os.path.splitext(self.output_path)[0],
-            calibrated=self.perspective.transformation_matrix is not None,
-            meters_per_pixel=self.speed_calculator.meters_per_pixel,
-        )
-        print(f"CSV reports saved: {csv_paths['players']}, {csv_paths['teams']}, {csv_paths['timeline']}")
-
         spatial = SpatialVisualizer(
             (video_frames[0].shape[1], video_frames[0].shape[0]),
             field_size=(FIELD_CONFIG["field_width"], FIELD_CONFIG["field_height"]),
             calibrated=self.perspective.transformation_matrix is not None,
         )
-        stem = os.path.splitext(self.output_path)[0]
-        heatmap_paths = spatial.save_heatmaps(tracks, stem)
         pass_events = detect_pass_candidates(
             tracks, possession_owner_ids, fps, spatial, **PASS_CONFIG,
         )
+        csv_paths = export_analysis_csv(
+            tracks, possession_owner_ids, team_ball_control, fps,
+            os.path.splitext(self.output_path)[0],
+            calibrated=self.perspective.transformation_matrix is not None,
+            meters_per_pixel=self.speed_calculator.meters_per_pixel,
+            pass_events=pass_events,
+        )
+        print(f"CSV reports saved: {csv_paths['players']}, {csv_paths['teams']}, {csv_paths['timeline']}")
+
+        stem = os.path.splitext(self.output_path)[0]
+        heatmap_paths = spatial.save_heatmaps(tracks, stem)
         pass_paths = save_pass_map(pass_events, spatial, stem, len(video_frames), fps, PASS_CONFIG)
         last_tracks = {role: tracks[role][-1] for role in ("players", "goalkeepers", "referees", "ball")}
         minimap_path = stem + "_minimap_last.png"

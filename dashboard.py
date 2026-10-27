@@ -65,6 +65,14 @@ def _show_job(job):
                            data=files["session_report"].read_bytes(),
                            file_name="bao_cao_buoi_tap.pdf", mime="application/pdf")
         st.caption("Báo cáo theo track ID tạm thời; chỉ hiển thị chỉ số, không chấm điểm cầu thủ.")
+    st.subheader("Chỉ số theo từng track")
+    columns = [
+        "role", "track_id", "team_id", "observed_seconds", "observed_path_px",
+        "possession_frames", "pass_candidate_sent", "pass_candidate_received",
+    ]
+    st.dataframe([{key: row.get(key, "") for key in columns} for row in players], width="stretch")
+    st.caption("observed_path_px là dịch chuyển trên ảnh, chưa phải quãng đường chạy thực tế. "
+               "Chuyền/nhận là ứng viên chưa xác minh thành công; track ID có thể đổi khi mất dấu.")
     with st.expander("Bảng dữ liệu cầu thủ và đội"):
         st.dataframe(teams, width="stretch")
         st.dataframe(players, width="stretch")

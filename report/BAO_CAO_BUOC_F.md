@@ -21,7 +21,7 @@ flowchart LR
     D --> H[ZIP báo cáo]
 ```
 
-Mỗi lần upload được lưu vào thư mục ID ngẫu nhiên `output/dashboard_jobs/<id>/`; tên tệp do ứng dụng đặt, không dùng tên đường dẫn từ trình duyệt. Từng job có stub riêng và chạy với `read_from_stub=False`, tránh lấy nhầm track của video khác. Dashboard hiện giới hạn 100 MB, 450 frame và 1280×720 vì pipeline đọc toàn bộ frame vào RAM. Server mặc định chỉ nghe `127.0.0.1` theo `.streamlit/config.toml`.
+Mỗi lần upload được lưu vào thư mục ID ngẫu nhiên `output/dashboard_jobs/<id>/`; tên tệp do ứng dụng đặt, không dùng tên đường dẫn từ trình duyệt. Từng job có stub riêng và chạy với `read_from_stub=False`, tránh lấy nhầm track của video khác. Dashboard cho upload tối đa 500 MB; tệp lớn hơn có thể đọc qua đường dẫn cục bộ. Người dùng chọn tối đa 450 frame ở 1280×720 hoặc 900 frame với độ phân giải tự giảm vì pipeline đọc toàn bộ frame vào RAM. Server mặc định chỉ nghe `127.0.0.1` theo `.streamlit/config.toml`.
 
 ## 2. Đầu vào và đầu ra
 
@@ -30,7 +30,7 @@ Mỗi lần upload được lưu vào thư mục ID ngẫu nhiên `output/dashbo
 | Upload | MP4/MOV/AVI/MKV có frame và FPS hợp lệ | Từ chối tệp hỏng, vượt giới hạn hoặc thiếu FPS |
 | Suy luận | Clip + checkpoint có sẵn + CPU/GPU | Phụ thuộc chất lượng detection/tracking; CPU có thể chậm |
 | Video trình duyệt | MP4 do OpenCV xuất | Chuyển H.264/yuv420p bằng `imageio-ffmpeg` để trình duyệt phát được |
-| Thống kê và biểu đồ | CSV và heatmap từ pipeline | Thống kê mô tả, không phải điểm độ chính xác; quãng đường chỉ ước tính nếu chưa hiệu chỉnh sân |
+| Thống kê và biểu đồ | CSV và heatmap từ pipeline | Bảng theo track có thời gian nhìn thấy, dịch chuyển trên ảnh, frame gán bóng, chuyền/nhận ứng viên. Pixel không phải mét; chuyền ứng viên chưa xác minh thành công |
 | Tải báo cáo | ZIP gồm CSV, JSON phương pháp, PNG/PDF | Video lớn và clip upload không nằm trong ZIP |
 
 ## 3. Hình kiểm tra kỹ thuật
@@ -57,6 +57,6 @@ Mở `http://127.0.0.1:8501`. Nếu không thấy checkpoint đã tải từ Mod
 - Kiểm thử đơn vị xác nhận upload không dùng tên tệp do người dùng đặt làm đường dẫn, kiểm tra metadata video, chuyển MP4V sang H.264 và ZIP loại video dung lượng lớn.
 - `Streamlit AppTest` chạy trang khởi động với 0 exception, 2 tab và widget upload. Lệnh server được kiểm tra chạy cục bộ trên `127.0.0.1`.
 - Smoke test ba frame validation chạy qua checkpoint `freeze=10` trên CPU và tạo video H.264, CSV, PNG/PDF, metadata. Đây là kiểm chứng khả năng chạy và cấu trúc đầu ra, không phải thí nghiệm đánh giá trên trận thật.
-- Chưa có video demo thực của người dùng; vì vậy chưa có nhận xét về trải nghiệm xem video dài, chất lượng tracking thực tế, FPS suy luận hoặc tính chính xác của số liệu dashboard. UI chưa được chụp màn hình bằng trình duyệt do công cụ điều khiển trình duyệt trong phiên này dừng ở bước kiểm tra URL; ảnh trên là frame đầu ra pipeline đã kiểm tra trực quan.
+- Đã chạy kiểm tra tích hợp trên clip 450 frame và xem lại PDF/video đầu ra. Clip chưa có nhãn tham chiếu độc lập, vì vậy chưa suy ra độ chính xác của tracking, gán bóng hoặc đường chuyền từ kết quả này.
 
 Tài liệu API giao diện: [Streamlit `st.file_uploader`](https://docs.streamlit.io/develop/api-reference/widgets/st.file_uploader), [`st.video`](https://docs.streamlit.io/develop/api-reference/media/st.video) và [`st.download_button`](https://docs.streamlit.io/develop/api-reference/widgets/st.download_button).

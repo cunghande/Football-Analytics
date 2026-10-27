@@ -4,7 +4,7 @@
 
 Sau khi phân tích một video, pipeline tạo `analysis_session_report.pdf` với thông tin video, số frame/FPS, mức độ phát hiện bóng, bảng theo track ID, tổng hợp theo hai nhóm áo và heatmap theo đội. Báo cáo **chỉ mô tả chỉ số**, không chấm điểm, xếp loại hay suy ra họ tên/số áo. PDF được tạo cả khi chạy `python main.py` và khi dùng dashboard. Dashboard còn cho tải PDF riêng và ZIP gồm PDF, CSV, hình, JSON phương pháp. Dữ liệu từ mỗi lần upload ở `output/dashboard_jobs/<id>/`, không được commit lên Git.
 
-Khi chưa có bốn cặp điểm hiệu chỉnh sân trong `config.py`, PDF **không hiện mét và km/h**. CSV vẫn có các cột ước tính từ hệ số cũ để kiểm tra công thức, nhưng không được đọc là số đo thực. Track ID có thể đổi khi mất dấu; số track không phải số người duy nhất. `possession_frames` là số frame được quy tắc gần bóng gán, không phải nhãn kiểm soát bóng đã xác minh.
+Khi chưa có bốn cặp điểm hiệu chỉnh sân trong `config.py`, PDF **không hiện mét và km/h**. Bảng theo track có thời gian nhìn thấy (giây), dịch chuyển vị trí chân trên ảnh (pixel), frame gán bóng, số đường chuyền ứng viên đi/đến. Pixel **không phải quãng đường chạy** vì camera di chuyển và phối cảnh. Đường chuyền ứng viên **chưa được xác minh thành công**; không có mẫu số tin cậy để tính tỷ lệ chuyền thành công. CSV vẫn có các cột ước tính mét/km/h từ hệ số cũ để kiểm tra công thức, nhưng không được đọc là số đo thực. Track ID có thể đổi khi mất dấu; số track không phải số người duy nhất. `possession_frames` là số frame được quy tắc gần bóng gán, không phải nhãn kiểm soát bóng đã xác minh.
 
 ## Chạy với video thật
 
@@ -31,6 +31,8 @@ Khi chưa có bốn cặp điểm hiệu chỉnh sân trong `config.py`, PDF **k
    Mở `http://127.0.0.1:8501`. Chọn checkpoint `Fine-tune freeze=10`. Trên máy đã nhận CUDA, chọn `GPU 0 — NVIDIA GeForce RTX 3050 ... (khuyến nghị)`; nếu mục này không hiện, thoát `venv` và khởi động dashboard bằng Python hệ thống. Chọn **Tải lên từ trình duyệt** cho MP4/MOV/AVI/MKV tối đa 500 MB, hoặc **Đường dẫn trên máy này** để đọc tệp lớn hơn mà không upload (ví dụ `D:\Downloads\video.mp4`, chỉ áp dụng khi Streamlit chạy trên cùng máy). Chọn tối đa **450 frame ở 720p** hoặc **900 frame với độ phân giải tự giảm**; có thể chọn giây bắt đầu. Video phải có FPS hợp lệ. Với video thật, **không chọn** ô “Clip ghép từ ảnh hoặc FPS giả định”. Bấm **Phân tích video**. PDF/CSV chỉ mô tả đoạn đã phân tích, không phải toàn bộ video nguồn. Sau khi đổi `.streamlit/config.toml`, dừng và khởi động lại Streamlit để áp dụng giới hạn upload mới.
 
 4. Kiểm tra video kết quả, sau đó tải **Báo cáo buổi tập (PDF)** và **báo cáo phân tích (ZIP)**. Trong PDF, đối chiếu số frame/FPS với video. Mở CSV trong ZIP để kiểm tra các số gốc. Nếu tỷ lệ frame phát hiện bóng thấp hoặc frame “chưa rõ” cao, phần gán bóng cần xem lại trên video.
+
+Sau khi cập nhật mã, hãy **chạy phân tích lại video** để có các cột mới `observed_seconds`, `observed_path_px`, `pass_candidate_sent`, `pass_candidate_received` và khung minimap nhỏ hơn. PDF cũ không tự cập nhật.
 
 Nếu chạy không qua dashboard, đặt video tại `input/DFL-Scoutingfeed.mp4`, chọn `YOLO_CONFIG["model_path"]` trong `config.py`, rồi chạy `python main.py`. Các kết quả nằm trong `output/`, gồm `output/analysis_session_report.pdf`.
 
