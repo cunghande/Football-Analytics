@@ -87,6 +87,8 @@ def _video_tab():
     devices, torch_error = _device_options()
     device_label = st.selectbox("Thiết bị suy luận", list(devices))
     device = devices[device_label]
+    st.caption("YOLO chạy trên GPU đã chọn; đọc video, theo dõi, thống kê và tạo báo cáo vẫn sử dụng CPU."
+               if device == "0" else "YOLO và các bước xử lý còn lại chạy trên CPU.")
     if len(devices) == 1 and not torch_error:
         st.caption("Python hiện tại không nhận GPU CUDA; dashboard dùng CPU. GPU Modal chỉ dùng lúc huấn luyện.")
     if torch_error:
@@ -101,7 +103,10 @@ def _video_tab():
     if st.button("Phân tích video", type="primary",
                  disabled=uploaded is None or torch_error is not None):
         try:
-            with st.spinner("Đang xử lý video và tạo báo cáo. Clip CPU có thể mất vài phút..."):
+            status = ("YOLO đang chạy trên GPU; các bước còn lại dùng CPU. "
+                      "Đang xử lý video và tạo báo cáo..." if device == "0" else
+                      "Đang xử lý video trên CPU và tạo báo cáo; có thể mất vài phút...")
+            with st.spinner(status):
                 job, input_path = create_job(uploaded, ROOT / "output/dashboard_jobs")
                 original = probe_video(input_path, enforce_limits=False)
                 analysis_input, clip_info = prepare_analysis_clip(
