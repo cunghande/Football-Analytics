@@ -23,3 +23,9 @@ Giữ mọi frame của cùng trận trong **một nhóm chia tập**; không ch
 ## Giới hạn của sửa nhãn sau YOLO
 
 Làm mượt vai trò theo vài frame có thể giảm nhãn nhảy trên **cùng người**, nhưng không tạo được box thủ môn khi YOLO bỏ sót và không sửa được nhầm ổn định. Video cắt cảnh còn làm track ID đổi hoặc nối sai người. Vì vậy dự án giữ một luồng chạy chung và ưu tiên cải thiện dữ liệu/model, thay vì thêm chế độ theo màu áo cho riêng một clip.
+
+## Kết quả cập nhật ngày 28/10/2026
+
+Đã gán đầy đủ bốn lớp trên 60 frame của video lỗi: 51 box bóng, 38 thủ môn, 669 cầu thủ và 55 trọng tài. Các frame này chỉ được thêm vào train; validation/test cũ giữ nguyên. Run `detection_player_role_ft_full_v1` fine-tune toàn bộ từ checkpoint `freeze=10` trên Modal H100, dừng sớm ở epoch 41 và lấy best epoch 21.
+
+Trên 599 ảnh validation độc lập với 60 frame mới, AP50 thủ môn tăng từ 0,1775 lên 0,2271; AP50 trọng tài tăng từ 0,7524 lên 0,7657. mAP50 giảm nhẹ từ 0,5591 xuống 0,5501 và AP50 bóng giảm từ 0,4426 xuống 0,3629. Trên chính 60 frame train, AP50 thủ môn tăng từ 0,2211 lên 0,9348, nhưng số này chỉ là chẩn đoán khả năng thích nghi miền, không phải bằng chứng tổng quát hóa. Dashboard dùng checkpoint mới như một model duy nhất; không thêm chế độ theo từng video. Xem giao thức, bảng đầy đủ và hình tại [báo cáo fine-tune vai trò](../report/BAO_CAO_FINE_TUNE_VAI_TRO.md).

@@ -17,7 +17,7 @@ from src.dashboard_io import create_report_zip, run_job
 
 def main():
     images = ROOT / "datasets/football_4class_clip_split/valid/images"
-    checkpoint = ROOT / "runs/modal/detection_player_freeze10_v1/weights/best.pt"
+    checkpoint = ROOT / "runs/modal/detection_player_role_ft_full_v1/weights/best.pt"
     if not checkpoint.exists():
         raise FileNotFoundError(f"Checkpoint missing: {checkpoint}")
     selected = [next(images.glob(f"2_mp4-{frame}_*.jpg")) for frame in (148, 149, 150)]

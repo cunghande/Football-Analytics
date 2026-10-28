@@ -6,7 +6,10 @@ import os
 
 # YOLO Configuration
 YOLO_CONFIG = {
-    "model_path": os.environ.get("YOLO_MODEL_PATH", "yolo26x.pt"),
+    "model_path": os.environ.get(
+        "YOLO_MODEL_PATH",
+        "runs/modal/detection_player_role_ft_full_v1/weights/best.pt",
+    ),
     "confidence_threshold": 0.5,
     "ball_confidence_threshold": 0.25,
     "iou_threshold": 0.45,

@@ -55,7 +55,7 @@ def main():
     }
     (job / "dataset_demo_protocol.json").write_text(
         json.dumps(protocol, ensure_ascii=False, indent=2), encoding="utf-8")
-    checkpoint = ROOT / "runs/modal/detection_player_freeze10_v1/weights/best.pt"
+    checkpoint = ROOT / "runs/modal/detection_player_role_ft_full_v1/weights/best.pt"
     files = run_job(input_path, job, checkpoint, "cpu")
     bundle = create_report_zip(job)
     print(f"Browser video: {files['video']}")

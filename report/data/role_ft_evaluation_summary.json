@@ -1,0 +1,513 @@
+{
+  "protocol": {
+    "dataset": "/data/football_4class_clip_split",
+    "splits": [
+      "valid",
+      "test"
+    ],
+    "class_names": [
+      "ball",
+      "goalkeeper",
+      "player",
+      "referee"
+    ],
+    "baseline_mapping": {
+      "person": "player",
+      "sports ball": "ball",
+      "goalkeeper": "no baseline output",
+      "referee": "no baseline output"
+    },
+    "imgsz": 640,
+    "rect": false,
+    "batch": 8,
+    "inference_confidence": 0.001,
+    "nms_iou": 0.7,
+    "inference_max_det": 300,
+    "eval_max_det": 100,
+    "ap_implementation": "pycocotools COCOeval bbox, maxDets=100, area=all",
+    "precision_recall": "macro across 4 classes, conf>=0.25, greedy IoU>=0.5",
+    "ultralytics_version": "8.4.163"
+  },
+  "results": {
+    "baseline": {
+      "checkpoint": "yolo26x.pt",
+      "sha256": "9fdd44a31c504547ffb81d2c6d9e6dac3493c8eaa8b0398d3f43bae6c7003e92",
+      "splits": {
+        "valid": {
+          "map50": 0.18947882555459403,
+          "map50_95": 0.06198616298432972,
+          "precision_macro_conf025_iou05": 0.2278129002962718,
+          "recall_macro_conf025_iou05": 0.2467349336747678,
+          "per_class": {
+            "ball": {
+              "ap50": 0.11348050723157144,
+              "ap50_95": 0.03574535005692459
+            },
+            "goalkeeper": {
+              "ap50": 0.0,
+              "ap50_95": 0.0
+            },
+            "player": {
+              "ap50": 0.6444347949868044,
+              "ap50_95": 0.21219930188039432
+            },
+            "referee": {
+              "ap50": 0.0,
+              "ap50_95": 0.0
+            }
+          },
+          "fixed_threshold_per_class": {
+            "ball": {
+              "tp": 91,
+              "fp": 303,
+              "fn": 357,
+              "precision": 0.23096446700507614,
+              "recall": 0.203125
+            },
+            "goalkeeper": {
+              "tp": 0,
+              "fp": 0,
+              "fn": 371,
+              "precision": 0.0,
+              "recall": 0.0
+            },
+            "player": {
+              "tp": 6160,
+              "fp": 2895,
+              "fn": 1699,
+              "precision": 0.6802871341800111,
+              "recall": 0.7838147346990711
+            },
+            "referee": {
+              "tp": 0,
+              "fp": 0,
+              "fn": 815,
+              "precision": 0.0,
+              "recall": 0.0
+            }
+          },
+          "num_predictions_conf0001": 96504,
+          "num_images": 599,
+          "num_ground_truth": 9493
+        },
+        "test": {
+          "map50": 0.1127796771657225,
+          "map50_95": 0.03616507304923967,
+          "precision_macro_conf025_iou05": 0.04243821124022844,
+          "recall_macro_conf025_iou05": 0.15502049180327868,
+          "per_class": {
+            "ball": {
+              "ap50": 0.012287391265006093,
+              "ap50_95": 0.0012332192125182608
+            },
+            "goalkeeper": {
+              "ap50": 0.0,
+              "ap50_95": 0.0
+            },
+            "player": {
+              "ap50": 0.43883131739788395,
+              "ap50_95": 0.14342707298444043
+            },
+            "referee": {
+              "ap50": 0.0,
+              "ap50_95": 0.0
+            }
+          },
+          "fixed_threshold_per_class": {
+            "ball": {
+              "tp": 18,
+              "fp": 196,
+              "fn": 222,
+              "precision": 0.08411214953271028,
+              "recall": 0.075
+            },
+            "goalkeeper": {
+              "tp": 0,
+              "fp": 0,
+              "fn": 244,
+              "precision": 0.0,
+              "recall": 0.0
+            },
+            "player": {
+              "tp": 133,
+              "fp": 1420,
+              "fn": 111,
+              "precision": 0.08564069542820348,
+              "recall": 0.5450819672131147
+            },
+            "referee": {
+              "tp": 0,
+              "fp": 0,
+              "fn": 270,
+              "precision": 0.0,
+              "recall": 0.0
+            }
+          },
+          "num_predictions_conf0001": 59572,
+          "num_images": 244,
+          "num_ground_truth": 998
+        }
+      }
+    },
+    "freeze10": {
+      "checkpoint": "/runs/detection_player_freeze10_v1/weights/best.pt",
+      "sha256": "7f06b71d15e8914ee0281479948769606c7047df3bf00f5cef8d810563627f16",
+      "splits": {
+        "valid": {
+          "map50": 0.5591007062883024,
+          "map50_95": 0.27091285246887875,
+          "precision_macro_conf025_iou05": 0.5935931043330647,
+          "recall_macro_conf025_iou05": 0.578002715519335,
+          "per_class": {
+            "ball": {
+              "ap50": 0.44256345188569324,
+              "ap50_95": 0.16259734717021473
+            },
+            "goalkeeper": {
+              "ap50": 0.1774909903035193,
+              "ap50_95": 0.09780902178914888
+            },
+            "player": {
+              "ap50": 0.8639423389374972,
+              "ap50_95": 0.40201173464243645
+            },
+            "referee": {
+              "ap50": 0.7524060440265002,
+              "ap50_95": 0.42123330627371497
+            }
+          },
+          "fixed_threshold_per_class": {
+            "ball": {
+              "tp": 213,
+              "fp": 243,
+              "fn": 235,
+              "precision": 0.46710526315789475,
+              "recall": 0.47544642857142855
+            },
+            "goalkeeper": {
+              "tp": 85,
+              "fp": 207,
+              "fn": 286,
+              "precision": 0.2910958904109589,
+              "recall": 0.22911051212938005
+            },
+            "player": {
+              "tp": 6934,
+              "fp": 1616,
+              "fn": 925,
+              "precision": 0.8109941520467836,
+              "recall": 0.8823005471434024
+            },
+            "referee": {
+              "tp": 591,
+              "fp": 143,
+              "fn": 224,
+              "precision": 0.8051771117166212,
+              "recall": 0.7251533742331289
+            }
+          },
+          "num_predictions_conf0001": 54625,
+          "num_images": 599,
+          "num_ground_truth": 9493
+        },
+        "test": {
+          "map50": 0.29634904460995465,
+          "map50_95": 0.10936532669196232,
+          "precision_macro_conf025_iou05": 0.32585621491769123,
+          "recall_macro_conf025_iou05": 0.4411714480874317,
+          "per_class": {
+            "ball": {
+              "ap50": 0.8942325773772402,
+              "ap50_95": 0.3466556915631497
+            },
+            "goalkeeper": {
+              "ap50": 0.016890715986712542,
+              "ap50_95": 0.00546424379881522
+            },
+            "player": {
+              "ap50": 0.27413886152122624,
+              "ap50_95": 0.08529309582607429
+            },
+            "referee": {
+              "ap50": 0.00013402355463972793,
+              "ap50_95": 4.827557981011363e-05
+            }
+          },
+          "fixed_threshold_per_class": {
+            "ball": {
+              "tp": 215,
+              "fp": 26,
+              "fn": 25,
+              "precision": 0.8921161825726142,
+              "recall": 0.8958333333333334
+            },
+            "goalkeeper": {
+              "tp": 5,
+              "fp": 33,
+              "fn": 239,
+              "precision": 0.13157894736842105,
+              "recall": 0.020491803278688523
+            },
+            "player": {
+              "tp": 207,
+              "fp": 533,
+              "fn": 37,
+              "precision": 0.2797297297297297,
+              "recall": 0.8483606557377049
+            },
+            "referee": {
+              "tp": 0,
+              "fp": 0,
+              "fn": 270,
+              "precision": 0.0,
+              "recall": 0.0
+            }
+          },
+          "num_predictions_conf0001": 7555,
+          "num_images": 244,
+          "num_ground_truth": 998
+        }
+      }
+    },
+    "full": {
+      "checkpoint": "/runs/detection_player_full_v1/weights/best.pt",
+      "sha256": "77e9593c2a758ed31bedb2a3b993157fa4f1c01f9044f844d1ee798151501417",
+      "splits": {
+        "valid": {
+          "map50": 0.5257292974715063,
+          "map50_95": 0.247335729174218,
+          "precision_macro_conf025_iou05": 0.5815375165580263,
+          "recall_macro_conf025_iou05": 0.5630435965162472,
+          "per_class": {
+            "ball": {
+              "ap50": 0.40077256195287353,
+              "ap50_95": 0.14077713525218663
+            },
+            "goalkeeper": {
+              "ap50": 0.18805655913226937,
+              "ap50_95": 0.09442560299146244
+            },
+            "player": {
+              "ap50": 0.8183895807470961,
+              "ap50_95": 0.38717794698306834
+            },
+            "referee": {
+              "ap50": 0.6956984880537859,
+              "ap50_95": 0.36696223147015444
+            }
+          },
+          "fixed_threshold_per_class": {
+            "ball": {
+              "tp": 197,
+              "fp": 113,
+              "fn": 251,
+              "precision": 0.635483870967742,
+              "recall": 0.43973214285714285
+            },
+            "goalkeeper": {
+              "tp": 99,
+              "fp": 257,
+              "fn": 272,
+              "precision": 0.27808988764044945,
+              "recall": 0.2668463611859838
+            },
+            "player": {
+              "tp": 6390,
+              "fp": 911,
+              "fn": 1469,
+              "precision": 0.8752225722503767,
+              "recall": 0.8130805445985494
+            },
+            "referee": {
+              "tp": 597,
+              "fp": 514,
+              "fn": 218,
+              "precision": 0.5373537353735374,
+              "recall": 0.7325153374233129
+            }
+          },
+          "num_predictions_conf0001": 40571,
+          "num_images": 599,
+          "num_ground_truth": 9493
+        },
+        "test": {
+          "map50": 0.29435707504958414,
+          "map50_95": 0.11512320437476158,
+          "precision_macro_conf025_iou05": 0.36239271349565466,
+          "recall_macro_conf025_iou05": 0.3162226775956284,
+          "per_class": {
+            "ball": {
+              "ap50": 0.355580899918464,
+              "ap50_95": 0.13540999496881304
+            },
+            "goalkeeper": {
+              "ap50": 0.20450192636956666,
+              "ap50_95": 0.0876309462658945
+            },
+            "player": {
+              "ap50": 0.6170704464075558,
+              "ap50_95": 0.23735217879459183
+            },
+            "referee": {
+              "ap50": 0.000275027502750275,
+              "ap50_95": 9.96974697469747e-05
+            }
+          },
+          "fixed_threshold_per_class": {
+            "ball": {
+              "tp": 38,
+              "fp": 25,
+              "fn": 202,
+              "precision": 0.6031746031746031,
+              "recall": 0.15833333333333333
+            },
+            "goalkeeper": {
+              "tp": 57,
+              "fp": 47,
+              "fn": 187,
+              "precision": 0.5480769230769231,
+              "recall": 0.2336065573770492
+            },
+            "player": {
+              "tp": 213,
+              "fp": 501,
+              "fn": 31,
+              "precision": 0.29831932773109243,
+              "recall": 0.8729508196721312
+            },
+            "referee": {
+              "tp": 0,
+              "fp": 17,
+              "fn": 270,
+              "precision": 0.0,
+              "recall": 0.0
+            }
+          },
+          "num_predictions_conf0001": 6499,
+          "num_images": 244,
+          "num_ground_truth": 998
+        }
+      }
+    },
+    "role_ft_v1": {
+      "checkpoint": "/runs/detection_player_role_ft_full_v1/weights/best.pt",
+      "sha256": "35f82408cbf424a7c1ad3acb2abb561778179c66d985daa29d7226e842c8fde9",
+      "splits": {
+        "valid": {
+          "map50": 0.550140849612997,
+          "map50_95": 0.2613857187484937,
+          "precision_macro_conf025_iou05": 0.5472647895201874,
+          "recall_macro_conf025_iou05": 0.5745176895400947,
+          "per_class": {
+            "ball": {
+              "ap50": 0.3629494914298226,
+              "ap50_95": 0.12972156043080527
+            },
+            "goalkeeper": {
+              "ap50": 0.2270918546312583,
+              "ap50_95": 0.12268559182553199
+            },
+            "player": {
+              "ap50": 0.8448633553266707,
+              "ap50_95": 0.4063237556861237
+            },
+            "referee": {
+              "ap50": 0.7656586970642362,
+              "ap50_95": 0.38681196705151377
+            }
+          },
+          "fixed_threshold_per_class": {
+            "ball": {
+              "tp": 198,
+              "fp": 397,
+              "fn": 250,
+              "precision": 0.33277310924369746,
+              "recall": 0.4419642857142857
+            },
+            "goalkeeper": {
+              "tp": 94,
+              "fp": 376,
+              "fn": 277,
+              "precision": 0.2,
+              "recall": 0.25336927223719674
+            },
+            "player": {
+              "tp": 6598,
+              "fp": 1159,
+              "fn": 1261,
+              "precision": 0.8505865669717675,
+              "recall": 0.8395470161598168
+            },
+            "referee": {
+              "tp": 622,
+              "fp": 150,
+              "fn": 193,
+              "precision": 0.805699481865285,
+              "recall": 0.7631901840490798
+            }
+          },
+          "num_predictions_conf0001": 50540,
+          "num_images": 599,
+          "num_ground_truth": 9493
+        },
+        "test": {
+          "map50": 0.34109421935987105,
+          "map50_95": 0.13030614239789634,
+          "precision_macro_conf025_iou05": 0.2254316120387549,
+          "recall_macro_conf025_iou05": 0.39870218579234973,
+          "per_class": {
+            "ball": {
+              "ap50": 0.7383007269501571,
+              "ap50_95": 0.2798417349989228
+            },
+            "goalkeeper": {
+              "ap50": 0.014212896779540891,
+              "ap50_95": 0.004142990267907739
+            },
+            "player": {
+              "ap50": 0.6062658939738124,
+              "ap50_95": 0.2357101459932681
+            },
+            "referee": {
+              "ap50": 0.005597359735973598,
+              "ap50_95": 0.0015296983314866312
+            }
+          },
+          "fixed_threshold_per_class": {
+            "ball": {
+              "tp": 188,
+              "fp": 142,
+              "fn": 52,
+              "precision": 0.5696969696969697,
+              "recall": 0.7833333333333333
+            },
+            "goalkeeper": {
+              "tp": 5,
+              "fp": 67,
+              "fn": 239,
+              "precision": 0.06944444444444445,
+              "recall": 0.020491803278688523
+            },
+            "player": {
+              "tp": 193,
+              "fp": 542,
+              "fn": 51,
+              "precision": 0.26258503401360545,
+              "recall": 0.7909836065573771
+            },
+            "referee": {
+              "tp": 0,
+              "fp": 2,
+              "fn": 270,
+              "precision": 0.0,
+              "recall": 0.0
+            }
+          },
+          "num_predictions_conf0001": 10376,
+          "num_images": 244,
+          "num_ground_truth": 998
+        }
+      }
+    }
+  }
+}

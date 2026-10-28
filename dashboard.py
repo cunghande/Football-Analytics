@@ -13,7 +13,7 @@ from src.dashboard_io import (
 
 
 ROOT = Path(__file__).resolve().parent
-CHECKPOINT = ROOT / "runs/modal/detection_player_freeze10_v1/weights/best.pt"
+CHECKPOINT = ROOT / "runs/modal/detection_player_role_ft_full_v1/weights/best.pt"
 
 
 def _inference_device():
@@ -109,9 +109,9 @@ def _video_tab():
                "video lớn hơn có thể đọc từ đường dẫn trên chính máy chạy dashboard. "
                "Báo cáo chỉ tính cho đoạn đã chọn.")
     if not CHECKPOINT.is_file():
-        st.error("Chưa tìm thấy checkpoint freeze=10 tại runs/modal/detection_player_freeze10_v1/weights/best.pt.")
+        st.error("Chưa tìm thấy checkpoint role_ft_v1 tại runs/modal/detection_player_role_ft_full_v1/weights/best.pt.")
         return
-    st.caption("Model: detection_player_freeze10_v1 (4 lớp).")
+    st.caption("Model: detection_player_role_ft_full_v1 (4 lớp; bổ sung 60 frame sửa vai trò).")
     device, device_label, torch_error = _inference_device()
     st.write(f"Thiết bị suy luận: **{device_label}**")
     st.caption("YOLO chạy trên GPU; đọc video, theo dõi, thống kê và tạo báo cáo vẫn sử dụng CPU."

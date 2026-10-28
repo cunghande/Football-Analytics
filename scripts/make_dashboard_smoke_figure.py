@@ -16,7 +16,7 @@ from src.dashboard_io import analysis_files, run_job
 
 def main():
     images = ROOT / "datasets/football_4class_clip_split/valid/images"
-    checkpoint = ROOT / "runs/modal/detection_player_freeze10_v1/weights/best.pt"
+    checkpoint = ROOT / "runs/modal/detection_player_role_ft_full_v1/weights/best.pt"
     job = ROOT / "output/dashboard_jobs/academic_smoke_v2"
     job.mkdir(parents=True, exist_ok=True)
     source = job / "input.mp4"

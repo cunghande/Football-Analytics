@@ -45,9 +45,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--baseline", type=str, required=True)
     parser.add_argument("--freeze", type=str, required=True)
     parser.add_argument("--full", type=str, required=True)
+    parser.add_argument("--candidate", type=str,
+                        help="Optional fourth four-class checkpoint to evaluate")
+    parser.add_argument("--candidate-name", type=str, default="candidate",
+                        help="Result key used for --candidate")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--device", type=str, default="0")
-    parser.add_argument("--split", choices=("valid", "test", "both"), default="both")
+    parser.add_argument(
+        "--split", choices=("train", "valid", "test", "both"), default="both"
+    )
     return parser.parse_args()
 
 
@@ -210,6 +216,10 @@ def main() -> None:
     splits = ("valid", "test") if args.split == "both" else (args.split,)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     models = {"baseline": args.baseline, "freeze10": args.freeze, "full": args.full}
+    if args.candidate:
+        if args.candidate_name in models or not args.candidate_name.strip():
+            raise ValueError("--candidate-name must be a non-empty, unique result key")
+        models[args.candidate_name] = args.candidate
     summary = {"protocol": {
         "dataset": str(args.data_root), "splits": list(splits), "class_names": list(NAMES),
         "baseline_mapping": {"person": "player", "sports ball": "ball",

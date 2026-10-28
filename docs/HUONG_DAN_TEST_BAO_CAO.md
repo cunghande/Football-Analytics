@@ -21,10 +21,17 @@ Khi có đủ bằng chứng áo vàng/quần tối trên cùng track, pipeline 
 2. Xác nhận checkpoint đã tải về từ Modal:
 
    ```powershell
-   Test-Path .\runs\modal\detection_player_freeze10_v1\weights\best.pt
+   Test-Path .\runs\modal\detection_player_role_ft_full_v1\weights\best.pt
    ```
 
-   Lệnh cần trả `True`. Nếu `False`, lấy `best.pt` của run `detection_player_freeze10_v1` từ Modal Volume `football-training-runs` và đặt đúng thư mục trên. Checkpoint lớn được loại khỏi GitHub.
+   Lệnh cần trả `True`. Nếu `False`, tải `best.pt` từ Modal Volume (tạo thư mục đích trước):
+
+   ```powershell
+   New-Item -ItemType Directory -Force .\runs\modal\detection_player_role_ft_full_v1\weights | Out-Null
+   python -m modal volume get football-training-runs /detection_player_role_ft_full_v1/weights/best.pt .\runs\modal\detection_player_role_ft_full_v1\weights\best.pt --force
+   ```
+
+   Checkpoint lớn được loại khỏi GitHub.
 
 3. Chạy dashboard:
 

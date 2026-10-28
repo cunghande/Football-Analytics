@@ -1,4 +1,4 @@
-"""Evaluate baseline, freeze=10 and full YOLO detectors on Modal.
+"""Evaluate baseline, freeze=10, full and a candidate YOLO detector on Modal.
 
 Run after the freeze=10 job has saved its best.pt checkpoint:
     python -X utf8 -m modal run modal_evaluate.py
@@ -32,13 +32,16 @@ image = (
     timeout=12 * 60 * 60,
     volumes={"/data": dataset_volume, "/runs": results_volume},
 )
-def evaluate_on_h100(dataset: str, full: str, freeze: str, output: str) -> str:
+def evaluate_on_h100(
+    dataset: str, full: str, freeze: str, candidate: str, candidate_name: str, output: str
+) -> str:
     dataset_root = Path("/data") / dataset
     if not (dataset_root / "data.yaml").is_file():
         raise FileNotFoundError(dataset_root / "data.yaml")
     full_path = Path("/runs") / full / "weights" / "best.pt"
     freeze_path = Path("/runs") / freeze / "weights" / "best.pt"
-    for checkpoint in (full_path, freeze_path):
+    candidate_path = Path("/runs") / candidate / "weights" / "best.pt"
+    for checkpoint in (full_path, freeze_path, candidate_path):
         if not checkpoint.is_file():
             raise FileNotFoundError(checkpoint)
     output_path = Path("/runs") / output
@@ -50,6 +53,8 @@ def evaluate_on_h100(dataset: str, full: str, freeze: str, output: str) -> str:
         "--baseline", "yolo26x.pt",
         "--full", str(full_path),
         "--freeze", str(freeze_path),
+        "--candidate", str(candidate_path),
+        "--candidate-name", candidate_name,
         "--output-dir", str(output_path),
         "--device", "0",
         "--split", "both",
@@ -63,10 +68,14 @@ def main(
     dataset: str = "football_4class_clip_split",
     full: str = "detection_player_full_v1",
     freeze: str = "detection_player_freeze10_v1",
+    candidate: str = "detection_player_role_ft_full_v1",
+    candidate_name: str = "role_ft_v1",
     output: str = "evaluation_b_fixed640_v2",
 ) -> None:
-    for value in (dataset, full, freeze, output):
+    for value in (dataset, full, freeze, candidate, candidate_name, output):
         if value in ("", ".", "..") or "/" in value or "\\" in value:
             raise ValueError("All names must be one directory component")
-    path = evaluate_on_h100.remote(dataset, full, freeze, output)
+    path = evaluate_on_h100.remote(
+        dataset, full, freeze, candidate, candidate_name, output
+    )
     print(f"Evaluation artifacts are saved in football-training-runs:{path}")
