@@ -1,5 +1,7 @@
 # Bước F — Dashboard Streamlit
 
+> Nhật ký thực nghiệm tại thời điểm bước F. Checkpoint và giao diện hiện tại đã thay đổi; dùng [README](../README.md) và [hướng dẫn chạy](../docs/HUONG_DAN_TEST_BAO_CAO.md) để sử dụng hệ thống mới nhất.
+
 ## 1. Mục tiêu và thiết kế
 
 Dashboard trong `dashboard.py` có một luồng **Phân tích video**: tải clip hoặc nhập đường dẫn cục bộ, chạy checkpoint `freeze=10`, tự chọn GPU CUDA nếu khả dụng, xem video H.264, biểu đồ, heatmap, bảng CSV và tải PDF/ZIP. Tab “Kết quả cho báo cáo” đã được bỏ khỏi giao diện; tư liệu học thuật vẫn nằm trong thư mục `report/` của repo.

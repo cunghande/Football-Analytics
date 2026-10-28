@@ -12,11 +12,8 @@ on:
     - cron: "0 6 * * 1"
 
 jobs:
-  # Detects PRs touching files where fast-tests can't catch a regression:
-  # fast-tests only exercises numpy/opencv/scikit-learn code paths and never
-  # touches torch/ultralytics/supervision, so a change to the pinned CV/ML
-  # deps or to the detector/tracker/camera-motion modules needs the real
-  # pipeline run (pytest -m slow) to be verified.
+  # Fast tests include mocked detector/tracker paths but do not run inference
+  # on a full video. Sensitive changes additionally need a real pipeline run.
   changes:
     name: Detect sensitive changes
     if: github.event_name == 'pull_request'
@@ -58,14 +55,17 @@ jobs:
           python-version: "3.13"
           cache: pip
 
-      # Fast tests (team assigner, ball assigner, speed/distance, pipeline
-      # integration) only exercise numpy/opencv/scikit-learn code paths in
-      # src/ — never torch/ultralytics/supervision. Installing just this
-      # subset keeps every push/PR run fast and free of large downloads.
-      # NOTE: keep these pins in sync with requirements.txt by hand;
-      # Dependabot does not update this list.
+      # The suite also imports the detector, tracker, dashboard and PDF modules.
+      # Install the project's dependencies so collection works on a clean runner.
       - name: Install fast-test dependencies
-        run: pip install pytest numpy==2.5.1 opencv-python==5.0.0.93 scikit-learn==1.9.0
+        run: pip install -r requirements.txt pypdf
+
+      # Initial-render tests only check that the configured path exists; they
+      # never load weights or perform inference. The real checkpoint is private.
+      - name: Create dashboard render-test placeholder
+        run: |
+          mkdir -p runs/modal/detection_player_role_ft_full_v1/weights
+          touch runs/modal/detection_player_role_ft_full_v1/weights/best.pt
 
       - name: Run fast tests
         run: pytest -m "not slow"
@@ -93,6 +93,9 @@ jobs:
       - name: Run full-pipeline smoke test
         env:
           YOLO_DEVICE: cpu
+          # The fine-tuned dashboard checkpoint is private and not in Git.
+          # Use the public baseline so CI can run without the Modal volume.
+          YOLO_MODEL_PATH: yolo26x.pt
         run: pytest -m slow
 
       - name: Upload smoke-test output artifact

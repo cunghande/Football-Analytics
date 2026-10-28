@@ -1,5 +1,7 @@
 # Bước A — fine-tune YOLO trên Modal
 
+> Hướng dẫn thí nghiệm A ban đầu. Checkpoint dashboard hiện tại được huấn luyện tiếp từ `freeze=10`; xem [thí nghiệm fine-tune vai trò](../report/BAO_CAO_FINE_TUNE_VAI_TRO.md) để biết dữ liệu, cấu hình và kết quả mới hơn.
+
 Chỉ dùng dataset `detection-player` đã xuất sang YOLO và chuẩn hóa về đúng bốn lớp `ball`, `goalkeeper`, `player`, `referee`. Dataset `datasets/football` có sẵn trong repo thuộc nguồn khác và không được dùng thay cho thí nghiệm này. Bản `datasets/football_4class_clip_split` được tạo từ v4 bằng `scripts/prepare_clip_split.py`: loại ảnh trùng, sửa box vượt biên rất nhỏ và chia theo tên clip. **Không có ID trận nguồn, nên đây chỉ là split theo clip, chưa chứng minh độc lập theo trận.** Cách tải và kiểm tra giấy phép: [DATASET_GUIDE.md](DATASET_GUIDE.md).
 
 ## 1. Kiểm tra dataset ở máy

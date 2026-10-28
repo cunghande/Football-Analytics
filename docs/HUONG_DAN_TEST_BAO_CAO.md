@@ -1,84 +1,64 @@
-# Chạy thử báo cáo buổi tập
+# Hướng dẫn chạy video và đọc báo cáo
 
-**Kiểm tra lỗi vai trò/người ngoài sân:** sau khi cập nhật mã, dừng tiến trình Streamlit cũ, khởi động lại bằng `run_dashboard.ps1` và phân tích lại video. Giao diện chỉ có một luồng chạy; bộ lọc người ngoài sân và ổn định vai trò tự xử lý. PDF cũ không tự đổi. `analysis_role_refinement.json` trong ZIP ghi quy tắc vai trò có kích hoạt hay không; `analysis_field_person_filter.json` ghi số quan sát bị loại. Xem video để phát hiện trường hợp cầu thủ thật bị lọc nhầm. [Phân tích clip 750 frame và giới hạn phương pháp](../report/PHAN_TICH_LOI_VAI_TRO_VA_NGUOI_NGOAI_SAN.md).
+Dashboard xử lý video trên máy đang mở ứng dụng. Modal chỉ dùng cho các lượt huấn luyện/đánh giá model. Trên máy hiện tại, checkpoint mặc định là `detection_player_role_ft_full_v1`, gồm bốn lớp `ball`, `goalkeeper`, `player`, `referee`.
 
-## Đầu ra hiện có
+## 1. Kiểm tra model và khởi động
 
-Sau khi phân tích một video, pipeline tạo `analysis_session_report.pdf` với thông tin video, số frame/FPS, mức độ phát hiện bóng, bảng theo track ID, tổng hợp theo hai nhóm áo và heatmap theo đội. Báo cáo **chỉ mô tả chỉ số**, không chấm điểm, xếp loại hay suy ra họ tên/số áo. PDF được tạo cả khi chạy `python main.py` và khi dùng dashboard. Dashboard còn cho tải PDF riêng và ZIP gồm PDF, CSV, hình, JSON phương pháp. Dữ liệu từ mỗi lần upload ở `output/dashboard_jobs/<id>/`, không được commit lên Git.
-
-Khi chưa có bốn cặp điểm hiệu chỉnh sân trong `config.py`, PDF **không hiện mét và km/h**. Bảng theo track có thời gian nhìn thấy (giây), dịch chuyển vị trí chân trên ảnh (pixel), chuyển động tương đối sau bù tịnh tiến camera (pixel/giây), frame gán bóng và số đường chuyền ứng viên đi/đến. Pixel/giây **không phải tốc độ chạy thực** vì phối cảnh, camera và rung box. CSV để trống cột mét/km/h khi chưa hiệu chỉnh sân. Đường chuyền ứng viên **chưa được xác minh thành công**; không có mẫu số tin cậy để tính tỷ lệ chuyền thành công. Track ID có thể đổi khi mất dấu; số track không phải số người duy nhất. `possession_frames` là số frame được quy tắc gần bóng gán, không phải nhãn kiểm soát bóng đã xác minh. [Phân tích cách tính và clip 750 frame](../report/PHAN_TICH_CHUYEN_DONG_VA_CHUYEN_BONG.md).
-
-Khi có đủ bằng chứng áo vàng/quần tối trên cùng track, pipeline tự ổn định nhãn `P`/`R`; nếu bằng chứng thiếu, giữ nhãn model. Bộ lọc khu kỹ thuật cũng tự chạy. Đây là các quy tắc theo ảnh, **chưa phải nhận diện vai trò hoặc sân đã được xác minh**. ZIP có `analysis_role_refinement.json` và `analysis_field_person_filter.json` ghi phương pháp và số quan sát thay đổi.
-
-## Chạy với video thật
-
-1. Mở PowerShell tại thư mục repo. Cài dependency một lần:
-
-   ```powershell
-   python -m pip install -r requirements.txt
-   ```
-
-2. Xác nhận checkpoint đã tải về từ Modal:
-
-   ```powershell
-   Test-Path .\runs\modal\detection_player_role_ft_full_v1\weights\best.pt
-   ```
-
-   Lệnh cần trả `True`. Nếu `False`, tải `best.pt` từ Modal Volume (tạo thư mục đích trước):
-
-   ```powershell
-   New-Item -ItemType Directory -Force .\runs\modal\detection_player_role_ft_full_v1\weights | Out-Null
-   python -m modal volume get football-training-runs /detection_player_role_ft_full_v1/weights/best.pt .\runs\modal\detection_player_role_ft_full_v1\weights\best.pt --force
-   ```
-
-   Checkpoint lớn được loại khỏi GitHub.
-
-3. Chạy dashboard:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\run_dashboard.ps1
-   ```
-
-   Mở `http://127.0.0.1:8501`. Nếu lệnh báo cổng 8501 đang dùng, dừng Streamlit cũ bằng `Ctrl+C` trong cửa sổ đã chạy nó, rồi chạy lại lệnh trên. Lệnh dùng Python 3.14 đã kiểm tra CUDA trên máy này, kể cả khi `venv` CPU đang hoạt động. Giao diện hiển thị **Thiết bị suy luận: GPU 0 — NVIDIA GeForce RTX 3050...**; nếu GPU không khả dụng, lệnh khởi động báo lỗi rõ ràng. Chọn **Tải lên từ trình duyệt** cho MP4/MOV/AVI/MKV tối đa 500 MB, hoặc **Đường dẫn trên máy này** để đọc tệp lớn hơn mà không upload. Pipeline tự chọn tối đa **900 frame** và giảm độ phân giải theo ngân sách bộ nhớ; có thể chọn giây bắt đầu. Video phải có FPS hợp lệ. Bấm **Phân tích video**. PDF/CSV chỉ mô tả đoạn đã phân tích, không phải toàn bộ video nguồn.
-
-4. Kiểm tra video kết quả, sau đó tải **Báo cáo buổi tập (PDF)** và **báo cáo phân tích (ZIP)**. Trong PDF, đối chiếu số frame/FPS với video. Mở CSV trong ZIP để kiểm tra các số gốc. Nếu tỷ lệ frame phát hiện bóng thấp hoặc frame “chưa rõ” cao, phần gán bóng cần xem lại trên video.
-
-Sau khi cập nhật mã, hãy **chạy phân tích lại video** để có các cột mới `observed_seconds`, `observed_path_px`, `pass_candidate_sent`, `pass_candidate_received` và khung minimap nhỏ hơn. PDF cũ không tự cập nhật.
-
-Nếu chạy không qua dashboard, đặt video tại `input/DFL-Scoutingfeed.mp4`, chọn `YOLO_CONFIG["model_path"]` trong `config.py`, rồi chạy `python main.py`. Các kết quả nằm trong `output/`, gồm `output/analysis_session_report.pdf`.
-
-## Thử khi chưa có video demo
-
-Máy đang có bản dataset cục bộ và checkpoint có thể chạy thử nhanh với **3 frame**:
+Mở PowerShell tại `D:\Code\football-analytics`:
 
 ```powershell
-python scripts/smoke_session_report.py
+Test-Path .\runs\modal\detection_player_role_ft_full_v1\weights\best.pt
+powershell -ExecutionPolicy Bypass -File .\run_dashboard.ps1
 ```
 
-Mở `output/dashboard_jobs/session_report_smoke/analysis_session_report.pdf`. PDF phải ghi **CLIP KIỂM TRA KỸ THUẬT**, 3 frame, FPS 10 *giả định* và không hiển thị tốc độ/quãng đường. File `analysis_report.zip` phải có PDF, CSV, JSON và hình. Nếu muốn chạy thêm một lượt 50 frame:
+`Test-Path` cần trả `True`. Script khởi động dùng Python 3.14 có CUDA trên máy này; nếu GPU không khả dụng hoặc cổng 8501 đang được dùng, script báo lỗi. Dừng phiên Streamlit cũ bằng `Ctrl+C` rồi chạy lại khi cập nhật code.
+
+Trên máy khác đã cài Python và các gói trong `requirements.txt`, có thể chạy `python -m streamlit run dashboard.py`. Giao diện tự chọn GPU 0 nếu PyTorch nhận CUDA, nếu không sẽ chạy CPU. Cài đặt PyTorch phải phù hợp với hệ điều hành và thiết bị của máy đó.
+
+Nếu thiếu checkpoint và đã có quyền truy cập Modal Volume:
 
 ```powershell
-python scripts/make_dataset_demo50.py
+python -m pip install modal
+python -X utf8 -m modal setup
+New-Item -ItemType Directory -Force .\runs\modal\detection_player_role_ft_full_v1\weights | Out-Null
+python -X utf8 -m modal volume get football-training-runs /detection_player_role_ft_full_v1/weights/best.pt .\runs\modal\detection_player_role_ft_full_v1\weights\best.pt --force
 ```
 
-PDF của lượt 50 frame phải ghi 50 frame, FPS 25 *giả định*. Có thể upload `output/dashboard_jobs/session_report_smoke/input.mp4` hoặc `output/dashboard_jobs/dataset_demo50/input.mp4` vào dashboard để thử giao diện; **chọn ô “Clip ghép từ ảnh hoặc FPS giả định”** trước khi bấm phân tích để PDF mới cũng ghi trạng thái kỹ thuật.
+Checkpoint được loại khỏi Git do kích thước lớn. Không gửi API key hoặc thông tin đăng nhập vào chat hay commit.
 
-Clip này ghép từ các ảnh validation, không có FPS và track ID nguồn đã xác minh. Không dùng số liệu từ nó để đánh giá một buổi tập. Nếu muốn kiểm tra trên sân thật, cần video quay cố định có FPS đáng tin cậy và đủ khung hình nhìn thấy người/bóng. Để báo số mét/km/h, hiệu chỉnh sân bằng bốn cặp điểm trong `FIELD_CONFIG["calibration_points"]` và đối chiếu kết quả với phép đo tham chiếu.
+## 2. Phân tích video
 
-## Kiểm thử tự động và xử lý lỗi thường gặp
+1. Mở địa chỉ Streamlit hiển thị trong PowerShell, thường là `http://127.0.0.1:8501`.
+2. Kiểm tra tên model và dòng **Thiết bị suy luận**. GPU chỉ tăng tốc YOLO; các bước xử lý khác vẫn dùng CPU.
+3. Chọn upload MP4/MOV/AVI/MKV tối đa 500 MB, hoặc chọn đường dẫn tới tệp nằm trên chính máy chạy Streamlit. Video cần đọc được và có FPS hợp lệ.
+4. Chọn giây bắt đầu, bấm **Phân tích video** và chờ kết quả. Hệ thống tự chọn tối đa 900 frame liên tiếp và giảm độ phân giải theo ngân sách RAM. Thời lượng phụ thuộc FPS: 900 frame ở 25 FPS tương đương tối đa 36 giây.
+5. Xem video kết quả và tải **Báo cáo buổi tập (PDF)** cùng **Báo cáo phân tích (ZIP)**. Báo cáo ghi đoạn thời gian, kích thước và FPS thực tế được xử lý; không suy diễn các con số cho cả video nguồn.
+
+Tệp mỗi lượt nằm tại `output/dashboard_jobs/<mã-lượt>/`. PDF trong ZIP là kết quả của lần chạy tương ứng; PDF cũ không tự thay đổi khi cập nhật model.
+
+## 3. Đọc kết quả
+
+- `P`, `GK`, `R` là track dự đoán cầu thủ, thủ môn và trọng tài. Track ID không phải số áo hoặc danh tính; mất dấu/cắt cảnh có thể sinh ID mới hoặc ghép nhầm.
+- Hai đội là cụm màu áo, không tự có tên đội. Thủ môn chưa được tự gán đội đáng tin cậy. Số track không phải số cầu thủ duy nhất.
+- PDF ghi tỉ lệ frame có bóng được phát hiện trực tiếp và frame được quy tắc gán bóng cho đội. Nếu không gán được, hiển thị **Không đo được**. Bóng nội suy chỉ hỗ trợ hiển thị.
+- Cột chuyển động trên ảnh là pixel/px/s, không phải thể lực hoặc tốc độ km/h. Khi chưa hiệu chỉnh sân, cột mét/km/h để trống. Camera lia, zoom và phối cảnh vẫn có thể gây sai số.
+- Chuyền/nhận là **ứng viên** do quy tắc sinh ra, không phải đường chuyền thành công đã xác minh. Cần xem lại video và nhãn tham chiếu trước khi kết luận.
+- Bộ lọc người ngoài sân và quy tắc ổn định vai trò tự hoạt động theo điều kiện của video, có thể bỏ sót hoặc sửa nhầm. Trong ZIP, xem `analysis_field_person_filter.json` và `analysis_role_refinement.json` để biết phương pháp và số quan sát thay đổi.
+
+PDF chỉ hiển thị track quan sát ít nhất một giây; CSV giữ các track ngắn hơn. Tài liệu phân tích cách tính: [chuyển động và đường chuyền](../report/PHAN_TICH_CHUYEN_DONG_VA_CHUYEN_BONG.md).
+
+## 4. Kiểm thử và sự cố thường gặp
 
 ```powershell
 python -m pytest -q -m "not slow"
 ```
 
-- `Chưa tìm thấy checkpoint`: kiểm tra `best.pt` theo bước 2, hoặc chọn model gốc để kiểm tra giao diện; model gốc không tách thủ môn/trọng tài.
-- `WinError 4551` khi tải `torch_python.dll` trong `venv`: Windows Application Control đang chặn thư viện đó. Thoát `venv` bằng `deactivate`, rồi chạy `python -m streamlit run dashboard.py` với Python hệ thống đã được kiểm tra trên máy này. Không tắt chính sách bảo vệ Windows để chạy thử.
-- `Video thiếu frame hoặc metadata FPS`: xuất lại video với FPS cố định và codec thông dụng, rồi tải lại.
-- PDF không có quãng đường/tốc độ: đó là hành vi đúng khi chưa hiệu chỉnh sân hoặc clip được đánh dấu kiểm tra kỹ thuật.
-- Track ID nhiều hơn số người: tracker có thể sinh ID mới sau che khuất. Báo cáo hiện không ghép danh tính.
-- PDF ghi nhiều frame “chưa rõ”: kiểm tra phát hiện bóng và khoảng cách gán bóng trước khi diễn giải phần tương tác bóng.
-- Sau khi cập nhật mã pipeline, **dừng hẳn tiến trình Streamlit rồi chạy lại**; tải lại trang trình duyệt không bảo đảm nạp lại các module Python đã import. Trong `output/dashboard_jobs/<mã_lượt>/dashboard_run.json`, bản mới ghi `ball_confidence_threshold: 0.25` và `ball_assignment_direct_detection_only: true`. Nếu thiếu hai trường này, báo cáo thuộc tiến trình cũ; hãy khởi động lại rồi phân tích lại video.
-- Nếu bóng không được phát hiện hoặc không gán được cho đội nào, PDF và dashboard ghi **Không đo được** thay vì trình bày 0%/100% như tỷ lệ kiểm soát bóng. Ngưỡng bóng hiện là 0,25, riêng các lớp người vẫn là 0,5; cần đối chiếu video vì ngưỡng thấp có thể sinh phát hiện nhầm. Frame bóng nội suy chỉ hỗ trợ hiển thị, không tính là phát hiện trực tiếp và không dùng để gán bóng.
-- Bảng PDF chỉ hiện track xuất hiện ít nhất 1 giây; CSV giữ mọi track. Số track không phải số người duy nhất, đặc biệt khi có người ngoài sân hoặc cầu thủ bị mất dấu.
+- **Thiếu checkpoint:** kiểm tra đúng đường dẫn và tải từ Volume ở bước 1.
+- **Không thấy GPU:** chạy `python -c "import torch; print(torch.cuda.is_available())"` bằng chính Python chạy Streamlit. Nếu dùng `run_dashboard.ps1`, kiểm tra Python 3.14 và CUDA theo thông báo trong PowerShell.
+- **Không mở được video:** thử video có codec thông dụng và FPS cố định; kiểm tra đường dẫn nằm trên máy chạy dashboard.
+- **Cổng 8501 đang dùng:** dừng phiên cũ hoặc dùng `python -m streamlit run dashboard.py --server.port 8502`.
+- **Nhiều track hoặc nhầm vai trò:** đối chiếu video, vì track có thể đổi ID và detector/rule vẫn nhầm. Không suy ra số cầu thủ duy nhất từ tổng track.
+- **Không có mét/km/h:** đây là trạng thái khi chưa hiệu chỉnh sân; px/s không thể đổi trực tiếp sang km/h bằng một hằng số chung.
+- **Bóng ít hoặc nhiều frame chưa rõ:** xem trực tiếp video trước khi diễn giải gán bóng và các ứng viên chuyền.
 
-Các file `output/`, `datasets/`, `runs/`, `stubs/` là dữ liệu hoặc kết quả cục bộ, được `.gitignore` loại khỏi commit. Repo GitHub chỉ chứa mã, tài liệu và số liệu/hình của thí nghiệm học thuật đã ghi nguồn.
+Tránh chạy hai pipeline ghi cùng tệp trong `output/`. Dashboard tạo thư mục riêng cho từng lượt và không đọc cache tracker cũ. `python main.py` dùng đường dẫn mặc định trong `config.py` và có tùy chọn dùng `stubs/`; đổi video/model thì tắt `VIDEO_CONFIG["read_from_stub"]` để tránh tái sử dụng kết quả cũ.

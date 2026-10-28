@@ -1,5 +1,7 @@
 # Phát triển hệ thống phân tích bóng đá từ video bằng thị giác máy tính
 
+> Báo cáo tổng hợp tại thời điểm trước lượt fine-tune sửa vai trò và các lần thử video sau đó. Xem [thí nghiệm vai trò](BAO_CAO_FINE_TUNE_VAI_TRO.md) và [README](../README.md) để biết cấu hình hiện tại.
+
 **Báo cáo bài tập lớn.** Người thực hiện, lớp, môn học, giảng viên và ngày nộp: *sinh viên tự điền theo yêu cầu môn học*. Các số đo dưới đây là kết quả đã chạy trên dữ liệu nêu rõ; không thay bằng số từ một trận chưa được quan sát.
 
 ## Tóm tắt
