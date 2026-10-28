@@ -2,14 +2,11 @@
 
 ## 1. Mục tiêu và thiết kế
 
-Dashboard trong `dashboard.py` có hai tab:
+Dashboard trong `dashboard.py` có một luồng **Phân tích video**: tải clip hoặc nhập đường dẫn cục bộ, chạy checkpoint `freeze=10`, tự chọn GPU CUDA nếu khả dụng, xem video H.264, biểu đồ, heatmap, bảng CSV và tải PDF/ZIP. Tab “Kết quả cho báo cáo” đã được bỏ khỏi giao diện; tư liệu học thuật vẫn nằm trong thư mục `report/` của repo.
 
-1. **Phân tích video:** tải một clip, chọn checkpoint (`freeze=10` mặc định), chọn CPU/GPU khả dụng, chạy pipeline hiện có, xem video H.264, biểu đồ, heatmap, bảng CSV và tải ZIP báo cáo.
-2. **Kết quả cho báo cáo:** xem hình thí nghiệm A–E và sơ đồ G (giả lập), rồi tải gói báo cáo A–G, đề cương, hình kèm nguồn.
+Dashboard chỉ là lớp giao diện quanh `FootballAnalyzer` trong `main.py`; các bước YOLO, ByteTrack, chia đội, gán bóng, đo chuyển động, CSV và heatmap vẫn dùng cùng mã như khi chạy `python main.py`. **Modal đã dùng để train YOLO; dashboard suy luận trên máy đang mở Streamlit.** Checkpoint `runs/modal/detection_player_freeze10_v1/weights/best.pt` được cố định cho luồng này vì có điểm validation cao nhất trong ba thiết lập ở [báo cáo B](BAO_CAO_BUOC_B.md).
 
-Dashboard chỉ là lớp giao diện quanh `FootballAnalyzer` trong `main.py`; các bước YOLO, ByteTrack, chia đội, gán bóng, đo chuyển động, CSV và heatmap vẫn dùng cùng mã như khi chạy `python main.py`. **Modal đã dùng để train YOLO; dashboard mặc định chạy suy luận trên máy đang mở Streamlit.** Checkpoint `runs/modal/detection_player_freeze10_v1/weights/best.pt` được chọn trước vì có điểm validation cao nhất trong ba thiết lập ở [báo cáo B](BAO_CAO_BUOC_B.md). Có thể chọn checkpoint fine-tune toàn bộ hoặc model gốc nếu tệp đã có trên máy; model gốc không tách riêng thủ môn/trọng tài.
-
-Giao diện có ô bật/tắt quy tắc ổn định `player`/`referee` khi áo trọng tài vàng/quần tối là kiểu trang phục hiếm trong clip. Quy tắc chạy sau ByteTrack và trước KMeans chia đội; nếu bằng chứng màu không đủ, giữ nhãn model. File `analysis_role_refinement.json` trong ZIP ghi trạng thái, điều kiện kích hoạt và số quan sát đổi nhãn. Đây là ước đoán vai trò, chưa có nhãn kiểm tra độc lập cho toàn clip.
+Luồng chạy tự áp dụng bộ lọc người ngoài sân và ổn định nhãn `player`/`referee` sau ByteTrack, trước KMeans chia đội. Quy tắc màu áo vàng/quần tối chỉ kích hoạt khi clip có bằng chứng hỗ trợ; nếu thiếu, giữ nhãn model. JSON trong ZIP ghi phương pháp và số quan sát đổi nhãn. Đây là ước đoán vai trò, chưa có nhãn kiểm tra độc lập cho toàn clip.
 
 ```mermaid
 flowchart LR

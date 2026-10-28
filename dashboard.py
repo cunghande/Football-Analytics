@@ -6,29 +6,25 @@ from pathlib import Path
 import streamlit as st
 
 from src.dashboard_io import (
-    MAX_EXTENDED_FRAMES, MAX_FRAMES, MAX_UPLOAD_BYTES, analysis_files, create_academic_zip,
+    MAX_EXTENDED_FRAMES, MAX_UPLOAD_BYTES, analysis_files,
     create_job, create_job_from_local_file, create_report_zip, prepare_analysis_clip,
     probe_video, read_csv, run_job,
 )
 
 
 ROOT = Path(__file__).resolve().parent
-CHECKPOINTS = {
-    "Fine-tune freeze=10 (khuyến nghị)": ROOT / "runs/modal/detection_player_freeze10_v1/weights/best.pt",
-    "Fine-tune toàn bộ": ROOT / "runs/modal/detection_player_full_v1/weights/best.pt",
-    "Model gốc COCO": ROOT / "yolo26x.pt",
-}
+CHECKPOINT = ROOT / "runs/modal/detection_player_freeze10_v1/weights/best.pt"
 
 
-def _device_options():
+def _inference_device():
     try:
         import torch
         if torch.cuda.is_available():
             name = torch.cuda.get_device_name(0)
-            return {f"GPU 0 — {name} (khuyến nghị)": "0", "CPU": "cpu"}, None
-        return {"CPU": "cpu"}, None
+            return "0", f"GPU 0 — {name}", None
+        return "cpu", "CPU", None
     except (ImportError, OSError) as exc:
-        return {"CPU": "cpu"}, f"PyTorch không tải được trong Python hiện tại: {exc}"
+        return "cpu", "CPU", f"PyTorch không tải được trong Python hiện tại: {exc}"
 
 
 def _show_job(job):
@@ -105,20 +101,17 @@ def _video_tab():
     st.caption(f"Upload tối đa {MAX_UPLOAD_BYTES // (1024 * 1024)} MB; "
                "video lớn hơn có thể đọc từ đường dẫn trên chính máy chạy dashboard. "
                "Báo cáo chỉ tính cho đoạn đã chọn.")
-    available = {label: path for label, path in CHECKPOINTS.items() if path.is_file()}
-    if not available:
-        st.error("Chưa tìm thấy checkpoint. Hãy tải best.pt từ kết quả Modal vào runs/modal/ hoặc đặt yolo26x.pt tại thư mục gốc.")
+    if not CHECKPOINT.is_file():
+        st.error("Chưa tìm thấy checkpoint freeze=10 tại runs/modal/detection_player_freeze10_v1/weights/best.pt.")
         return
-    checkpoint_name = st.selectbox("Checkpoint", list(available))
-    if checkpoint_name == "Model gốc COCO":
-        st.warning("Model gốc không dự đoán riêng goalkeeper/referee; báo cáo vai trò sẽ thiếu.")
-    devices, torch_error = _device_options()
-    device_label = st.selectbox("Thiết bị suy luận", list(devices))
-    device = devices[device_label]
-    st.caption("YOLO chạy trên GPU đã chọn; đọc video, theo dõi, thống kê và tạo báo cáo vẫn sử dụng CPU."
+    st.caption("Model: detection_player_freeze10_v1 (4 lớp).")
+    device, device_label, torch_error = _inference_device()
+    st.write(f"Thiết bị suy luận: **{device_label}**")
+    st.caption("YOLO chạy trên GPU; đọc video, theo dõi, thống kê và tạo báo cáo vẫn sử dụng CPU."
                if device == "0" else "YOLO và các bước xử lý còn lại chạy trên CPU.")
-    if len(devices) == 1 and not torch_error:
-        st.caption("Python hiện tại không nhận GPU CUDA; dashboard dùng CPU. GPU Modal chỉ dùng lúc huấn luyện.")
+    if device == "cpu" and not torch_error:
+        st.warning("Python hiện tại không nhận GPU CUDA. Trên máy này, dừng Streamlit và chạy "
+                   "`powershell -ExecutionPolicy Bypass -File .\\run_dashboard.ps1` để dùng Python có GPU.")
     if torch_error:
         st.error(torch_error)
         st.caption("Nếu Windows chặn torch_python.dll trong venv, hãy thoát venv rồi chạy "
@@ -135,24 +128,10 @@ def _video_tab():
                                    placeholder=r"D:\Downloads\video.mp4")
         st.caption("Chỉ dùng khi video nằm trên chính máy chạy Streamlit; tệp nguồn không bị sao chép.")
     local_source = local_path.strip().strip('"')
-    max_frames = st.selectbox("Độ dài đoạn phân tích",
-                              [MAX_FRAMES, MAX_EXTENDED_FRAMES],
-                              format_func=lambda count: (f"{count} frame - tối đa 720p"
-                                                         if count == MAX_FRAMES else
-                                                         f"{count} frame - tự giảm độ phân giải"))
-    st.caption("Chế độ 900 frame dùng độ phân giải thấp hơn để giữ lượng ảnh trong RAM gần chế độ 450 frame. "
-               "Các bước theo dõi và tạo báo cáo có thể mất lâu hơn.")
+    st.caption(f"Tự lấy tối đa {MAX_EXTENDED_FRAMES} frame liên tiếp và điều chỉnh độ phân giải "
+               "theo giới hạn bộ nhớ; nếu video dài hơn, báo cáo ghi rõ đoạn đã phân tích.")
     start_seconds = st.number_input("Bắt đầu phân tích từ giây thứ", min_value=0.0,
                                     value=0.0, step=1.0)
-    technical_only = st.checkbox("Clip ghép từ ảnh hoặc FPS giả định - chỉ kiểm tra kỹ thuật")
-    role_refinement_enabled = st.checkbox(
-        "Sửa nhãn trọng tài áo vàng/quần tối khi màu này hiếm (thử nghiệm)", value=True)
-    st.caption("Quy tắc chỉ bật khi bộ áo vàng/quần tối chiếm phần nhỏ trong clip và model có bằng chứng trọng tài. "
-               "Bỏ chọn nếu trọng tài không mặc vàng hoặc bạn muốn dùng nguyên nhãn model.")
-    field_person_filter_enabled = st.checkbox(
-        "Bỏ người ở khu kỹ thuật và ngoài sân khỏi thống kê (thử nghiệm)", value=True)
-    st.caption("Dựa vào vùng cỏ gần chân và trang phục tối ở mép dưới khung hình; "
-               "có thể bỏ nhầm cầu thủ mặc áo tối sát đường biên.")
     if st.button("Phân tích video", type="primary",
                  disabled=(uploaded is None and not local_source) or torch_error is not None):
         try:
@@ -169,24 +148,17 @@ def _video_tab():
                 original = probe_video(input_path, enforce_limits=False)
                 analysis_input, clip_info = prepare_analysis_clip(
                     input_path, job, original, start_seconds=start_seconds,
-                    max_frames=max_frames)
+                    max_frames=MAX_EXTENDED_FRAMES)
                 details = probe_video(analysis_input, enforce_limits=False)
                 if clip_info:
                     st.info(f"Chỉ phân tích đoạn {clip_info['start_seconds']:.1f}–"
                             f"{clip_info['end_seconds']:.1f} giây; "
                             f"{details['frames']} frame, {details['width']}×{details['height']} pixel. "
                             "Các chỉ số trong báo cáo thuộc đoạn này, không thuộc cả video gốc.")
-                if technical_only:
-                    (job / "dataset_demo_protocol.json").write_text(json.dumps({
-                        "purpose": "technical_demo_only",
-                        "warning": "FPS hoặc thứ tự thời gian chưa được xác minh; không dùng làm số liệu buổi tập.",
-                    }, ensure_ascii=False, indent=2), encoding="utf-8")
                 st.write(f"Đầu vào: {details['frames']} frame, {details['fps']:.2f} FPS, "
                          f"{details['width']}×{details['height']} pixel.")
-                run_job(analysis_input, job, available[checkpoint_name], device,
-                        source_name=source_name, clip_info=clip_info,
-                        role_refinement_enabled=role_refinement_enabled,
-                        field_person_filter_enabled=field_person_filter_enabled)
+                run_job(analysis_input, job, CHECKPOINT, device,
+                        source_name=source_name, clip_info=clip_info)
                 st.session_state["dashboard_job"] = str(job)
                 st.session_state["dashboard_source"] = source_name
             st.success("Đã hoàn thành phân tích.")
@@ -203,42 +175,12 @@ def _video_tab():
         _show_job(job)
 
 
-def _academic_tab():
-    st.write("Các hình dưới đây là kết quả của bước A–E, dùng nguồn dữ liệu và phương pháp ghi trong từng báo cáo.")
-    figures = [
-        ("So sánh detector trên validation", "comparison_b_metrics.png",
-         "Cùng 599 frame validation; xem báo cáo B để biết ánh xạ lớp của baseline."),
-        ("Thí nghiệm chia đội trên 50 frame", "team_assignment_comparison.png",
-         "200 crop đã kiểm tra thủ công, dùng box GT; không phải độ chính xác toàn pipeline."),
-        ("Minimap và mật độ vị trí từ dataset", "dataset_spatial_preview_50frames.png",
-         "50 frame và 594 box player GT; tọa độ ảnh, không có track ID hay mét thật."),
-        ("Pass map minh họa quy tắc", "pass_map_schematic_pass_map.png",
-         "Ví dụ hoàn toàn giả lập; mũi tên là ứng viên, chưa được kiểm chứng bằng nhãn pass."),
-    ]
-    for title, filename, caption in figures:
-        path = ROOT / "report/figures" / filename
-        if path.exists():
-            st.subheader(title)
-            st.image(str(path), caption=caption)
-    try:
-        bundle = create_academic_zip(ROOT)
-        st.download_button("Tải báo cáo A–G và hình (ZIP)",
-                           data=bundle.read_bytes(), file_name=bundle.name,
-                           mime="application/zip")
-    except FileNotFoundError as exc:
-        st.warning(str(exc))
-
-
 def main():
     st.set_page_config(page_title="Football Analytics", layout="wide")
     st.title("Football Analytics")
     st.caption("Dự án phát triển từ alina-letzien/football-analytics (MIT); "
                "dataset detection-player v4 của FSDM (CC BY 4.0).")
-    video_tab, academic_tab = st.tabs(["Phân tích video", "Kết quả cho báo cáo"])
-    with video_tab:
-        _video_tab()
-    with academic_tab:
-        _academic_tab()
+    _video_tab()
 
 
 if __name__ == "__main__":

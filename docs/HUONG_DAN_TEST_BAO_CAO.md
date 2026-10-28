@@ -1,6 +1,6 @@
 # Chạy thử báo cáo buổi tập
 
-**Kiểm tra lỗi vai trò/người ngoài sân:** sau khi cập nhật mã, dừng tiến trình Streamlit cũ, chạy lại `python -m streamlit run dashboard.py`, bật hai ô sửa nhãn trọng tài và bỏ người ngoài sân, rồi phân tích lại video. PDF cũ không tự đổi. Mở `analysis_role_refinement.json` trong ZIP: `method` phải là `rare_yellow_kit_temporal_vote` hoặc `supported_yellow_referee_tracks` nếu quy tắc thực sự chạy; `raw_model_roles` nghĩa là quy tắc không kích hoạt. `analysis_field_person_filter.json` ghi số quan sát bị loại. Xem video để phát hiện trường hợp cầu thủ thật bị lọc nhầm. [Phân tích clip 750 frame và giới hạn phương pháp](../report/PHAN_TICH_LOI_VAI_TRO_VA_NGUOI_NGOAI_SAN.md).
+**Kiểm tra lỗi vai trò/người ngoài sân:** sau khi cập nhật mã, dừng tiến trình Streamlit cũ, khởi động lại bằng `run_dashboard.ps1` và phân tích lại video. Giao diện chỉ có một luồng chạy; bộ lọc người ngoài sân và ổn định vai trò tự xử lý. PDF cũ không tự đổi. `analysis_role_refinement.json` trong ZIP ghi quy tắc vai trò có kích hoạt hay không; `analysis_field_person_filter.json` ghi số quan sát bị loại. Xem video để phát hiện trường hợp cầu thủ thật bị lọc nhầm. [Phân tích clip 750 frame và giới hạn phương pháp](../report/PHAN_TICH_LOI_VAI_TRO_VA_NGUOI_NGOAI_SAN.md).
 
 ## Đầu ra hiện có
 
@@ -8,7 +8,7 @@ Sau khi phân tích một video, pipeline tạo `analysis_session_report.pdf` v�
 
 Khi chưa có bốn cặp điểm hiệu chỉnh sân trong `config.py`, PDF **không hiện mét và km/h**. Bảng theo track có thời gian nhìn thấy (giây), dịch chuyển vị trí chân trên ảnh (pixel), frame gán bóng, số đường chuyền ứng viên đi/đến. Pixel **không phải quãng đường chạy** vì camera di chuyển và phối cảnh. Đường chuyền ứng viên **chưa được xác minh thành công**; không có mẫu số tin cậy để tính tỷ lệ chuyền thành công. CSV vẫn có các cột ước tính mét/km/h từ hệ số cũ để kiểm tra công thức, nhưng không được đọc là số đo thực. Track ID có thể đổi khi mất dấu; số track không phải số người duy nhất. `possession_frames` là số frame được quy tắc gần bóng gán, không phải nhãn kiểm soát bóng đã xác minh.
 
-Nếu trọng tài mặc áo vàng/quần tối và kiểu trang phục này hiếm trong clip, tùy chọn **Sửa nhãn trọng tài áo vàng/quần tối** dùng vùng thân áo, vùng quần và 5 quan sát gần nhau để giảm nhảy nhãn `P`/`R`. Điều kiện quần tối giúp tránh gán thủ môn mặc cả bộ vàng thành trọng tài trên clip đã kiểm tra. Nếu một đội cũng mặc màu tương tự hoặc bằng chứng màu không đủ, hệ thống giữ nguyên nhãn model. Đây là quy tắc theo màu, **chưa phải nhận diện vai trò được xác minh**. Bỏ chọn tùy chọn này để so sánh với nhãn YOLO/ByteTrack ban đầu. ZIP có `analysis_role_refinement.json` ghi cách chạy và số quan sát đổi nhãn.
+Khi có đủ bằng chứng áo vàng/quần tối trên cùng track, pipeline tự ổn định nhãn `P`/`R`; nếu bằng chứng thiếu, giữ nhãn model. Bộ lọc khu kỹ thuật cũng tự chạy. Đây là các quy tắc theo ảnh, **chưa phải nhận diện vai trò hoặc sân đã được xác minh**. ZIP có `analysis_role_refinement.json` và `analysis_field_person_filter.json` ghi phương pháp và số quan sát thay đổi.
 
 ## Chạy với video thật
 
@@ -29,10 +29,10 @@ Nếu trọng tài mặc áo vàng/quần tối và kiểu trang phục này hi�
 3. Chạy dashboard:
 
    ```powershell
-   python -m streamlit run dashboard.py
+   powershell -ExecutionPolicy Bypass -File .\run_dashboard.ps1
    ```
 
-   Mở `http://127.0.0.1:8501`. Chọn checkpoint `Fine-tune freeze=10`. Trên máy đã nhận CUDA, chọn `GPU 0 — NVIDIA GeForce RTX 3050 ... (khuyến nghị)`; nếu mục này không hiện, thoát `venv` và khởi động dashboard bằng Python hệ thống. Chọn **Tải lên từ trình duyệt** cho MP4/MOV/AVI/MKV tối đa 500 MB, hoặc **Đường dẫn trên máy này** để đọc tệp lớn hơn mà không upload (ví dụ `D:\Downloads\video.mp4`, chỉ áp dụng khi Streamlit chạy trên cùng máy). Chọn tối đa **450 frame ở 720p** hoặc **900 frame với độ phân giải tự giảm**; có thể chọn giây bắt đầu. Video phải có FPS hợp lệ. Với video thật, **không chọn** ô “Clip ghép từ ảnh hoặc FPS giả định”. Bấm **Phân tích video**. PDF/CSV chỉ mô tả đoạn đã phân tích, không phải toàn bộ video nguồn. Sau khi đổi `.streamlit/config.toml`, dừng và khởi động lại Streamlit để áp dụng giới hạn upload mới.
+   Mở `http://127.0.0.1:8501`. Nếu lệnh báo cổng 8501 đang dùng, dừng Streamlit cũ bằng `Ctrl+C` trong cửa sổ đã chạy nó, rồi chạy lại lệnh trên. Lệnh dùng Python 3.14 đã kiểm tra CUDA trên máy này, kể cả khi `venv` CPU đang hoạt động. Giao diện hiển thị **Thiết bị suy luận: GPU 0 — NVIDIA GeForce RTX 3050...**; nếu GPU không khả dụng, lệnh khởi động báo lỗi rõ ràng. Chọn **Tải lên từ trình duyệt** cho MP4/MOV/AVI/MKV tối đa 500 MB, hoặc **Đường dẫn trên máy này** để đọc tệp lớn hơn mà không upload. Pipeline tự chọn tối đa **900 frame** và giảm độ phân giải theo ngân sách bộ nhớ; có thể chọn giây bắt đầu. Video phải có FPS hợp lệ. Bấm **Phân tích video**. PDF/CSV chỉ mô tả đoạn đã phân tích, không phải toàn bộ video nguồn.
 
 4. Kiểm tra video kết quả, sau đó tải **Báo cáo buổi tập (PDF)** và **báo cáo phân tích (ZIP)**. Trong PDF, đối chiếu số frame/FPS với video. Mở CSV trong ZIP để kiểm tra các số gốc. Nếu tỷ lệ frame phát hiện bóng thấp hoặc frame “chưa rõ” cao, phần gán bóng cần xem lại trên video.
 
