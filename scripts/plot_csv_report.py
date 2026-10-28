@@ -39,23 +39,31 @@ def plot_csv_report(stem):
     for x, value in enumerate(possession):
         axes[0].text(x, value + 1.2, f"{value:.1f}%", ha="center", fontsize=9)
 
-    metric = "distance_m_estimate" if show_movement else "observed_frames"
+    relative_available = (not show_movement and
+                          any(row.get("mean_camera_relative_motion_px_s") for row in people) and
+                          not (Path(stem).parent / "dataset_demo_protocol.json").exists())
+    metric = ("distance_m_estimate" if show_movement else
+              "mean_camera_relative_motion_px_s" if relative_available else "observed_frames")
     ranked = sorted(
-        (row for row in people if row[metric] != ""),
+        (row for row in people if row.get(metric, "") != "" and
+         (not relative_available or float(row.get("observed_seconds") or 0) >= 5)),
         key=lambda row: float(row[metric]), reverse=True,
     )[:10]
     if ranked:
         names = [f"{row['role']} {row['track_id']}" for row in ranked][::-1]
         values = [float(row[metric]) for row in ranked][::-1]
         axes[1].barh(names, values, color="#478c70")
-        axes[1].set_xlabel("Estimated distance (m)" if show_movement else "Observed frames")
+        axes[1].set_xlabel("Estimated distance (m)" if show_movement else
+                           "Camera-relative image motion (px/s)" if relative_available else
+                           "Observed frames")
     else:
         axes[1].text(0.5, 0.5, "No measured tracks", ha="center", va="center",
                      transform=axes[1].transAxes)
         axes[1].set_xticks([])
         axes[1].set_yticks([])
-    axes[1].set_title("Top tracks by estimated distance" if show_movement
-                      else "Top tracks by observed frames")
+    axes[1].set_title("Top tracks by estimated distance" if show_movement else
+                      "Top tracks by relative image motion" if relative_available else
+                      "Top tracks by observed frames")
     fig.suptitle("Descriptive video statistics (not ground-truth performance)", fontsize=11)
     paths = [stem + "_report_chart.png", stem + "_report_chart.pdf"]
     for path in paths:

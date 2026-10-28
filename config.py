@@ -59,7 +59,7 @@ POSSESSION_CONFIG = {
 # Candidate passes are deliberately conservative and are not verified events.
 PASS_CONFIG = {
     "min_stable_frames": 2,
-    "max_gap_seconds": 0.8,
+    "max_gap_seconds": 1.5,
     "min_distance_norm": 0.03,
     "max_distance_norm": 0.75,
 }
@@ -82,7 +82,7 @@ SPEED_CONFIG = {
 
 # Camera Motion Configuration
 CAMERA_CONFIG = {
-    "minimum_distance": 2.0,    # Minimum pixel movement to count as camera motion
+    "minimum_distance": 0.15,   # Ignore only near-zero global optical flow
     # Farnebäck optical flow parameters
     "farneback_pyr_scale": 0.5,
     "farneback_levels": 3,

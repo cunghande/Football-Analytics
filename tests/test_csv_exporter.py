@@ -35,7 +35,7 @@ def test_csv_totals_unknown_frames_and_fps(tmp_path):
     teams = _read(paths["teams"])
     timeline = _read(paths["timeline"])
     p7 = next(row for row in players if row["track_id"] == "7")
-    assert float(p7["distance_m_estimate"]) == pytest.approx(10.0)
+    assert p7["distance_m_estimate"] == ""
     assert float(p7["possession_seconds_estimate"]) == pytest.approx(1.0)
     assert float(p7["possession_pct_video"]) == pytest.approx(50.0)
     assert next(row for row in players if row["track_id"] == "9")["role"] == "goalkeeper"
@@ -46,7 +46,7 @@ def test_csv_totals_unknown_frames_and_fps(tmp_path):
     assert timeline[-1]["owner_track_id"] == ""
     metadata = json.loads((tmp_path / "analysis_csv_metadata.json").read_text(encoding="utf-8"))
     assert metadata["fps"] == 2
-    assert metadata["coordinate_method"] == "constant_meter_per_pixel_assumption"
+    assert metadata["coordinate_method"] == "image_space_camera_translation_only"
 
 
 def test_csv_requires_aligned_frame_counts(tmp_path):
@@ -56,8 +56,8 @@ def test_csv_requires_aligned_frame_counts(tmp_path):
 
 def test_player_image_motion_and_unverified_pass_counts(tmp_path):
     tracks = {"players": [
-        {7: {"position": (0, 0), "team": 1}},
-        {7: {"position": (3, 4), "team": 1}},
+        {7: {"position": (0, 0), "position_adjusted": (0, 0), "team": 1}},
+        {7: {"position": (3, 4), "position_adjusted": (0, 4), "team": 1}},
         {},
         {7: {"position": (30, 40), "team": 1},
          8: {"position": (40, 40), "team": 1}},
@@ -70,6 +70,7 @@ def test_player_image_motion_and_unverified_pass_counts(tmp_path):
     assert float(rows[7]["observed_seconds"]) == 1.5
     assert float(rows[7]["observed_path_px"]) == 5.0
     assert float(rows[7]["mean_observed_motion_px_s"]) == 10.0
+    assert float(rows[7]["mean_camera_relative_motion_px_s"]) == 8.0
     assert rows[7]["pass_candidate_sent"] == "1"
     assert rows[8]["pass_candidate_received"] == "1"
     assert rows[8]["observed_path_px"] == ""

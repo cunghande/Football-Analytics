@@ -62,7 +62,13 @@ def _show_job(job):
         col.metric(title, f"{float(row['possession_pct_video']):.1f}%"
                    if assigned_frames else "Không đo được")
     st.caption("Tỷ lệ frame được gán bóng, không phải nhãn kiểm soát bóng chuẩn. Hai đội là ID cụm màu áo.")
-    st.image(str(files["chart"]), caption="Gán bóng theo frame và mức quan sát track; quãng đường chỉ hiện khi đã hiệu chỉnh sân.")
+    chart_metadata = json.loads(files["csv_metadata"].read_text(encoding="utf-8"))
+    chart_caption = ("Gán bóng theo frame và quãng đường ước tính trên sân đã hiệu chỉnh."
+                     if chart_metadata.get("coordinate_method") == "four_point_field_homography" else
+                     "Gán bóng theo frame và chuyển động tương đối trên ảnh (px/s); đây chưa phải tốc độ chạy km/h."
+                     if any(row.get("mean_camera_relative_motion_px_s") for row in players) else
+                     "Gán bóng theo frame và số frame quan sát theo track.")
+    st.image(str(files["chart"]), caption=chart_caption)
     st.image(str(files["heatmaps"]), caption="Mật độ vị trí quan sát; xem metadata để biết chế độ tọa độ.")
     st.image(str(files["pass_map"]), caption="Đường chuyền ứng viên theo quy tắc; chưa có nhãn chuẩn để xác nhận.")
     st.image(str(files["minimap"]), caption="Minimap của frame cuối.", width=480)
@@ -74,10 +80,11 @@ def _show_job(job):
     st.subheader("Chỉ số theo từng track")
     columns = [
         "role", "track_id", "team_id", "observed_seconds", "observed_path_px",
+        "mean_camera_relative_motion_px_s",
         "possession_frames", "pass_candidate_sent", "pass_candidate_received",
     ]
     st.dataframe([{key: row.get(key, "") for key in columns} for row in players], width="stretch")
-    st.caption("observed_path_px là dịch chuyển trên ảnh, chưa phải quãng đường chạy thực tế. "
+    st.caption("mean_camera_relative_motion_px_s là chuyển động tương đối trên ảnh, chưa phải tốc độ km/h. "
                "Chuyền/nhận là ứng viên chưa xác minh thành công; track ID có thể đổi khi mất dấu.")
     with st.expander("Bảng dữ liệu cầu thủ và đội"):
         st.dataframe(teams, width="stretch")

@@ -10,7 +10,8 @@ from collections import Counter, defaultdict
 PLAYER_FIELDS = [
     "role", "track_id", "team_id", "team_assignment_changes", "first_frame",
     "last_frame", "observed_frames", "observed_seconds", "observed_path_px",
-    "mean_observed_motion_px_s", "distance_m_estimate",
+    "mean_observed_motion_px_s", "camera_relative_path_px",
+    "mean_camera_relative_motion_px_s", "distance_m_estimate",
     "mean_speed_kmh_estimate", "max_speed_kmh_estimate", "possession_frames",
     "possession_seconds_estimate", "possession_pct_video",
     "pass_candidate_sent", "pass_candidate_received",
@@ -63,9 +64,9 @@ def export_analysis_csv(tracks, possession_owner_ids, team_ball_control, fps,
                 team = info.get("team", 0) if role == "players" else 0
                 team = team if team in (1, 2) else 0
                 observations[(role, track_id)].append((frame, team, info))
-                if "speed" in info:
+                if calibrated and "speed" in info:
                     team_speed[team].append(float(info["speed"]))
-                if "distance" in info:
+                if calibrated and "distance" in info:
                     key = (role, track_id)
                     distance = float(info["distance"])
                     previous = prior_distances.get(key, 0.0)
@@ -92,7 +93,10 @@ def export_analysis_csv(tracks, possession_owner_ids, team_ball_control, fps,
         possession = sum(bool(info.get("has_ball")) for _, _, info in items)
         observed_path_px = 0.0
         observed_steps = 0
+        relative_path_px = 0.0
+        relative_steps = 0
         previous = None
+        previous_adjusted = None
         for frame, _, info in items:
             point = info.get("position")
             if point is None or len(point) != 2 or not all(math.isfinite(float(v)) for v in point):
@@ -103,6 +107,16 @@ def export_analysis_csv(tracks, possession_owner_ids, team_ball_control, fps,
                                                float(point[1]) - previous[1][1])
                 observed_steps += 1
             previous = (frame, (float(point[0]), float(point[1])))
+            adjusted = info.get("position_adjusted")
+            if adjusted is None or len(adjusted) != 2 or not all(math.isfinite(float(v)) for v in adjusted):
+                previous_adjusted = None
+            else:
+                current_adjusted = (float(adjusted[0]), float(adjusted[1]))
+                if previous_adjusted is not None and previous_adjusted[0] == frame - 1:
+                    relative_path_px += math.hypot(current_adjusted[0] - previous_adjusted[1][0],
+                                                   current_adjusted[1] - previous_adjusted[1][1])
+                    relative_steps += 1
+                previous_adjusted = (frame, current_adjusted)
         player_rows.append({
             "role": "player" if role == "players" else "goalkeeper",
             "track_id": track_id,
@@ -115,9 +129,12 @@ def export_analysis_csv(tracks, possession_owner_ids, team_ball_control, fps,
             "observed_path_px": _round(observed_path_px) if observed_steps else "",
             "mean_observed_motion_px_s": _round(observed_path_px * fps / observed_steps)
             if observed_steps else "",
-            "distance_m_estimate": _round(max(distances)) if distances else "",
-            "mean_speed_kmh_estimate": _round(sum(speeds) / len(speeds)) if speeds else "",
-            "max_speed_kmh_estimate": _round(max(speeds)) if speeds else "",
+            "camera_relative_path_px": _round(relative_path_px) if relative_steps else "",
+            "mean_camera_relative_motion_px_s": _round(relative_path_px * fps / relative_steps)
+            if relative_steps else "",
+            "distance_m_estimate": _round(max(distances)) if calibrated and distances else "",
+            "mean_speed_kmh_estimate": _round(sum(speeds) / len(speeds)) if calibrated and speeds else "",
+            "max_speed_kmh_estimate": _round(max(speeds)) if calibrated and speeds else "",
             "possession_frames": possession,
             "possession_seconds_estimate": _round(possession / fps),
             "possession_pct_video": _round(100 * possession / frames) if frames else 0.0,
@@ -134,8 +151,8 @@ def export_analysis_csv(tracks, possession_owner_ids, team_ball_control, fps,
         team_rows.append({
             "team_id": team,
             "tracked_people": team_people[team],
-            "distance_m_estimate": _round(team_distance[team]),
-            "mean_speed_kmh_estimate": _round(sum(speeds) / len(speeds)) if speeds else "",
+            "distance_m_estimate": _round(team_distance[team]) if calibrated else "",
+            "mean_speed_kmh_estimate": _round(sum(speeds) / len(speeds)) if calibrated and speeds else "",
             "possession_frames": count,
             "possession_seconds_estimate": _round(count / fps),
             "possession_pct_video": _round(100 * count / frames) if frames else 0.0,
@@ -162,13 +179,14 @@ def export_analysis_csv(tracks, possession_owner_ids, team_ball_control, fps,
     metadata = {
         "fps": fps,
         "frames": frames,
-        "coordinate_method": "four_point_field_homography" if calibrated else "constant_meter_per_pixel_assumption",
-        "meters_per_pixel_assumed": None if calibrated else meters_per_pixel,
+        "coordinate_method": "four_point_field_homography" if calibrated else "image_space_camera_translation_only",
+        "meters_per_pixel_assumed": None,
         "distance_note": "Approximate observed track path only; gaps are not interpolated.",
         "possession_note": "Nearest player to detected ball per frame; unknown includes no ball or no assigned player.",
         "team_note": "Team 1/2 are anonymous kit-color clusters; team 0 is unknown and includes goalkeepers.",
         "seconds_note": "Frame count divided by video FPS; consecutive assignments are not validated ball possession events.",
         "observed_path_px_note": "Sum of consecutive-frame foot-position changes in image pixels; camera motion and perspective remain. Not measured running distance.",
+        "camera_relative_motion_note": "Mean consecutive-frame foot displacement after subtracting accumulated global camera translation, in image pixels per second. Residual camera motion, perspective and box jitter remain; not physical running speed.",
         "pass_candidate_note": "Same-team owner transfer heuristic; sent/received counts are unverified candidates, not confirmed successful passes.",
     }
     with open(paths["metadata"], "w", encoding="utf-8") as handle:

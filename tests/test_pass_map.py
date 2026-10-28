@@ -21,7 +21,7 @@ def _fixture(receiver_team=1, ball_in_gap=True):
     return {"players": players, "ball": balls}
 
 
-def test_candidate_requires_stable_same_team_and_observed_free_ball(tmp_path):
+def test_candidate_requires_stable_same_team_and_endpoint_ball(tmp_path):
     owners = [11, 11, None, None, 22, 22]
     visualizer = SpatialVisualizer((1000, 500))
     events = detect_pass_candidates(_fixture(), owners, 10, visualizer)
@@ -45,8 +45,10 @@ def test_rejects_opponent_direct_switch_and_interpolated_ball():
                                   [11, 11, None, None, 22, 22], 10, visualizer) == []
     assert detect_pass_candidates(_fixture(),
                                   [11, 11, 22, 22, 22, 22], 10, visualizer) == []
-    assert detect_pass_candidates(_fixture(ball_in_gap=False),
-                                  [11, 11, None, None, 22, 22], 10, visualizer) == []
+    sparse = detect_pass_candidates(_fixture(ball_in_gap=False),
+                                    [11, 11, None, None, 22, 22], 10, visualizer)
+    assert len(sparse) == 1
+    assert sparse[0]["status"] == "candidate_unverified_sparse_ball"
 
 
 def test_empty_pass_map_is_a_valid_output(tmp_path):
@@ -65,3 +67,15 @@ def test_calibrated_candidate_distance_and_gap_gate():
     assert detect_pass_candidates(_fixture(),
                                   [11, 11, None, None, 22, 22], 10, visualizer,
                                   max_gap_seconds=0.1) == []
+
+
+def test_sparse_owner_endpoint_can_be_candidate_but_single_single_is_rejected():
+    visualizer = SpatialVisualizer((1000, 500))
+    tracks = _fixture(ball_in_gap=False)
+    tracks["ball"][3][1]["conf"] = 0.9
+    assert len(detect_pass_candidates(tracks,
+                                      [11, None, None, 22, 22, None], 10,
+                                      visualizer)) == 1
+    assert detect_pass_candidates(tracks,
+                                  [11, None, None, 22, None, None], 10,
+                                  visualizer) == []

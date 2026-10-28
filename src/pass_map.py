@@ -37,12 +37,12 @@ def _ball_observed(frame_ball):
 
 
 def detect_pass_candidates(tracks, owner_ids, fps, visualizer,
-                           min_stable_frames=2, max_gap_seconds=0.8,
+                           min_stable_frames=2, max_gap_seconds=1.5,
                            min_distance_norm=0.03, max_distance_norm=0.75):
-    """Require stable same-team owners around a visible free-ball interval.
+    """Find same-team owner transfers with observed ball at both endpoints.
 
-    This is a high-precision rule for *candidates*, not validated pass labels.
-    Direct owner changes without a free-ball frame are deliberately omitted.
+    Ball may disappear during flight. Such events are marked as sparse-evidence
+    candidates, never as verified passes. Direct owner changes are omitted.
     """
     players = tracks.get("players", [])
     balls = tracks.get("ball", [])
@@ -62,8 +62,8 @@ def detect_pass_candidates(tracks, owner_ids, fps, visualizer,
         gap = gap_end - gap_start + 1
         if (sender is None or unknown is not None or receiver is None
                 or sender == receiver or gap < 1 or gap > max_gap_frames
-                or release - left_start + 1 < min_stable_frames
-                or right_end - receive + 1 < min_stable_frames):
+                or max(release - left_start + 1,
+                       right_end - receive + 1) < min_stable_frames):
             continue
         start_info = players[release].get(sender)
         end_info = players[receive].get(receiver)
@@ -72,17 +72,16 @@ def detect_pass_candidates(tracks, owner_ids, fps, visualizer,
         team = start_info.get("team")
         if team not in (1, 2) or end_info.get("team") != team:
             continue
-        # Reject votes that flip teams within either stable owner segment.
+        # Check all observed owner frames, including a one-frame endpoint.
         if any(players[f].get(sender, {}).get("team") != team
-               for f in range(release - min_stable_frames + 1, release + 1)):
+               for f in range(left_start, release + 1)):
             continue
         if any(players[f].get(receiver, {}).get("team") != team
-               for f in range(receive, receive + min_stable_frames)):
+               for f in range(receive, right_end + 1)):
             continue
         observed = sum(_ball_observed(balls[f]) for f in range(release, receive + 1))
         if (not _ball_observed(balls[release])
-                or not _ball_observed(balls[receive])
-                or not any(_ball_observed(balls[f]) for f in range(gap_start, gap_end + 1))):
+                or not _ball_observed(balls[receive])):
             continue
         start = visualizer.normalized_position(start_info)
         end = visualizer.normalized_position(end_info)
@@ -111,7 +110,8 @@ def detect_pass_candidates(tracks, owner_ids, fps, visualizer,
             "distance_norm": round(distance, 6),
             "distance_m_if_calibrated": meters,
             "observed_ball_frames": observed,
-            "status": "candidate_unverified",
+            "status": ("candidate_unverified_visible_flight" if observed > 2 else
+                       "candidate_unverified_sparse_ball"),
         })
     return events
 
@@ -187,7 +187,7 @@ def save_pass_map(events, visualizer, output_stem, frame_count, fps,
         "displayed_edges_per_team_max": 20,
         "params": params or {},
         "example_label": example_label,
-        "method": "Stable owner A, visible free-ball interval, stable owner B, same known team, distance gate.",
+        "method": "Observed ball at both owners, at least one stable owner run, same known team, bounded gap and image distance. Flight ball may be missing.",
         "warning": "Candidate events only; nearest-foot ownership and track IDs are unverified. No pass precision/recall is claimed.",
     }
     with open(paths["metadata"], "w", encoding="utf-8") as handle:

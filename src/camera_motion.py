@@ -93,10 +93,16 @@ class CameraMotionAnalyzer:
         return movements
 
     def add_adjusted_positions_to_tracks(self, tracks, camera_movement_per_frame):
-        """Write camera-adjusted positions into track dictionaries."""
+        """Remove accumulated frame-to-frame camera translation from positions."""
+        offsets = []
+        total_x = total_y = 0.0
+        for dx, dy in camera_movement_per_frame:
+            total_x += dx
+            total_y += dy
+            offsets.append((total_x, total_y))
         for _, object_tracks in tracks.items():
             for frame_num, frame_tracks in enumerate(object_tracks):
-                dx, dy = camera_movement_per_frame[frame_num]
+                dx, dy = offsets[frame_num]
                 for _, track_info in frame_tracks.items():
                     x, y = track_info["position"]
                     track_info["position_adjusted"] = (x - dx, y - dy)

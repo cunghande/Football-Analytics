@@ -59,8 +59,8 @@ def _table(rows, widths, font, *, header=True, compact=False):
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 0), (-1, -1), 6),
         ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 2 if compact else 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2 if compact else 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 2 if compact else 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2 if compact else 4),
         ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#9CA3AF")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F5F7FA")]),
     ]
@@ -99,6 +99,8 @@ def generate_session_report(stem, destination=None, source_name=None):
     role_metadata = _load_json(role_path) if role_path.exists() else {}
     field_path = Path(base + "_field_person_filter.json")
     field_metadata = _load_json(field_path) if field_path.exists() else {}
+    pass_path = Path(base + "_pass_candidates.csv")
+    pass_events = _load_csv(pass_path) if pass_path.exists() else []
     run_path = stem.parent / "dashboard_run.json"
     run = _load_json(run_path) if run_path.exists() else {}
     demo_path = stem.parent / "dataset_demo_protocol.json"
@@ -202,7 +204,7 @@ def generate_session_report(stem, destination=None, source_name=None):
             "nhưng không đưa vào bảng PDF." + role_note, body),
         ])
 
-    player_data = [["Track ID", "Đội", "Thấy (s)", "Dịch chuyển\nảnh (px)",
+    player_data = [["Track ID", "Đội", "Thấy (s)", "Ảnh (px) /\ntương đối (px/s)",
                     "Gán bóng\n(frame)", "Chuyền\nứng viên", "Nhận\nứng viên"]]
     for row in sorted(report_players, key=lambda r: (r["role"], int(r["track_id"]))):
         prefix = "GK" if row["role"] == "goalkeeper" else "P"
@@ -211,7 +213,9 @@ def generate_session_report(stem, destination=None, source_name=None):
             prefix + str(row["track_id"]),
             "Chưa rõ" if team == 0 else f"Đội {team}",
             "-" if technical_demo else _fmt(row.get("observed_seconds") or int(row["observed_frames"]) / fps),
-            _fmt(row["observed_path_px"]) if row.get("observed_path_px") and not technical_demo else "-",
+            (f"{_fmt(row['observed_path_px'])} / "
+             f"{_fmt(row['mean_camera_relative_motion_px_s']) if row.get('mean_camera_relative_motion_px_s') else '-'}"
+             if row.get("observed_path_px") and not technical_demo else "-"),
             str(int(row["possession_frames"])) if possession_available else "-",
             (str(int(row["pass_candidate_sent"])) if row.get("pass_candidate_sent") and not technical_demo else "-"),
             (str(int(row["pass_candidate_received"])) if row.get("pass_candidate_received") and not technical_demo else "-"),
@@ -235,9 +239,10 @@ def generate_session_report(stem, destination=None, source_name=None):
     else:
         story.append(Paragraph("3. Chuyển động", heading))
         story.append(Paragraph(
-            "Không hiển thị quãng đường và tốc độ trong PDF vì video chưa có hiệu chỉnh "
-            "sân đáng tin cậy hoặc chỉ là clip kiểm tra kỹ thuật. CSV thô vẫn giữ các "
-            "giá trị theo giả định để kiểm tra công thức; không dùng chúng như số đo thực.", body))
+            "Bảng theo track hiển thị chuyển động tương đối trên ảnh (px/s) sau khi trừ "
+            "ước lượng tịnh tiến của camera. Đây không phải tốc độ chạy km/h: phối cảnh, "
+            "chuyển động camera còn dư và rung box vẫn ảnh hưởng. Chưa có tọa độ sân theo mét "
+            "để báo cáo quãng đường hay km/h.", body))
 
     story.append(Paragraph("4. Tổng hợp theo đội", heading))
     team_data = [["Nhóm màu áo", "Số track", "Frame gán bóng", "% tổng frame"]]
@@ -285,11 +290,11 @@ def generate_session_report(stem, destination=None, source_name=None):
         story.append(Paragraph("Không có track nào được quan sát ít nhất 1 giây. "
                                "Xem CSV để kiểm tra các track ngắn.", body))
     else:
-        story.append(_table(player_data, [62, 66, 67, 75, 85, 70, 70], font, compact=True))
+        story.append(_table(player_data, [60, 60, 65, 100, 70, 70, 70], font, compact=True))
     story.append(Paragraph(
         "Thấy (s) là tổng số frame quan sát chia FPS, không phải thời gian thi đấu. "
-        "Dịch chuyển ảnh là tổng khoảng cách giữa các vị trí chân ở những frame liên tiếp, "
-        "đơn vị pixel; camera di chuyển và phối cảnh làm sai lệch, nên đây không phải quãng đường chạy. "
+        "Cột Ảnh ghi tổng dịch chuyển chân trên ảnh (px) / chuyển động trung bình tương đối "
+        "với camera (px/s), chỉ tính hai frame liên tiếp cùng track; cả hai đều chưa phải số đo thể lực. "
         "Chuyền/Nhận ứng viên là số sự kiện cùng đội theo quy tắc, chưa kiểm chứng thành công bằng nhãn thủ công. "
         "Dấu - nghĩa là chưa đủ dữ liệu hoặc clip kiểm tra kỹ thuật không cho phép diễn giải chỉ số. "
         "P là track lớp player; GK là track lớp goalkeeper. "
@@ -299,12 +304,12 @@ def generate_session_report(stem, destination=None, source_name=None):
         "ít nhất 1 giây; CSV lưu toàn bộ track.", muted))
 
     if frames >= 10:
-        story.append(Paragraph("7. Cách đọc báo cáo", heading))
+        sparse = sum(event.get("status") == "candidate_unverified_sparse_ball" for event in pass_events)
         story.append(Paragraph(
-            "Báo cáo không nhận dạng họ tên hoặc số áo. Track ID có thể đổi khi cầu thủ bị che "
-            "hoặc rời khung hình. Số liệu bóng phụ thuộc phát hiện bóng và quy tắc gán gần nhất. "
-            "Không có điểm số hay nhận xét chất lượng cầu thủ. File CSV và JSON trong ZIP "
-            "lưu số gốc, FPS và giả định tính toán để kiểm tra lại.", body))
+            f"Đường chuyền ứng viên trong đoạn: {len(pass_events)}; trong đó {sparse} ứng viên "
+            "không thấy bóng giữa hai lần gán người giữ bóng. Số 0 nghĩa là thiếu bằng chứng "
+            "theo quy tắc, không có nghĩa trận đấu không có đường chuyền. Xem CSV để kiểm tra "
+            "frame bắt đầu/kết thúc; chưa thể tính tỷ lệ chuyền thành công.", muted))
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     document = SimpleDocTemplate(str(destination), pagesize=A4, leftMargin=17 * mm,

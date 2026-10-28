@@ -136,7 +136,7 @@ class FootballAnalyzer:
         return os.path.join(self.stub_dir, "track_stubs_roles_v2.pkl")
 
     def _camera_stub_path(self):
-        return os.path.join(self.stub_dir, "camera_movement_stubs.pkl")
+        return os.path.join(self.stub_dir, "camera_movement_v2_stubs.pkl")
 
     def _build_tracks(self, video_frames):
         stub_path = self._tracks_stub_path()
@@ -193,21 +193,6 @@ class FootballAnalyzer:
                     else:
                         position = self._foot_position(bbox)
                     tracks[object_name][frame_num][track_id]["position"] = position
-
-    def _add_fallback_transformed_positions(self, tracks):
-        # If no perspective calibration is set, convert adjusted pixels to meters.
-        scale = self.speed_calculator.meters_per_pixel
-        for object_name, object_tracks in tracks.items():
-            for frame_num, frame_tracks in enumerate(object_tracks):
-                for track_id, track_info in frame_tracks.items():
-                    adjusted = track_info.get("position_adjusted")
-                    if adjusted is None:
-                        tracks[object_name][frame_num][track_id]["position_transformed"] = None
-                        continue
-                    tracks[object_name][frame_num][track_id]["position_transformed"] = (
-                        adjusted[0] * scale,
-                        adjusted[1] * scale,
-                    )
 
     def _draw_tracks(self, frame, frame_tracks):
         output = frame.copy()
@@ -311,8 +296,6 @@ class FootballAnalyzer:
 
         if self.perspective.transformation_matrix is not None:
             self.perspective.add_transformed_position_to_tracks(tracks)
-        else:
-            self._add_fallback_transformed_positions(tracks)
 
         # Fit across the first N frames so a single occluded opening frame can't skew the clusters.
         if tracks["players"]:
@@ -357,7 +340,9 @@ class FootballAnalyzer:
 
         print(f"Jersey clusters refreshed {self.team_assigner.refresh_count} times")
 
-        self.speed_calculator.add_speed_and_distance_to_tracks(tracks, frame_window=SPEED_CONFIG["frame_window"])
+        if self.perspective.transformation_matrix is not None:
+            self.speed_calculator.add_speed_and_distance_to_tracks(
+                tracks, frame_window=SPEED_CONFIG["frame_window"])
 
         summary_stats = compute_summary_stats(tracks, num_frames=len(video_frames),
                                               observed_ball_frames=observed_ball_frames)
