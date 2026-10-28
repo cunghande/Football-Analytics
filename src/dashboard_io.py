@@ -151,6 +151,7 @@ def analysis_files(stem):
         "summary": Path(base + "_summary.json"),
         "csv_metadata": Path(base + "_csv_metadata.json"),
         "role_refinement": Path(base + "_role_refinement.json"),
+        "field_person_filter": Path(base + "_field_person_filter.json"),
         "heatmaps": Path(base + "_heatmaps.png"),
         "heatmaps_pdf": Path(base + "_heatmaps.pdf"),
         "heatmaps_metadata": Path(base + "_heatmaps_metadata.json"),
@@ -166,7 +167,7 @@ def analysis_files(stem):
 
 
 def run_job(input_path, job, model_path, device, source_name=None, clip_info=None,
-            role_refinement_enabled=True):
+            role_refinement_enabled=True, field_person_filter_enabled=True):
     """Call the same analysis pipeline used by main.py, then render charts."""
     from main import FootballAnalyzer
     from config import YOLO_CONFIG
@@ -181,10 +182,12 @@ def run_job(input_path, job, model_path, device, source_name=None, clip_info=Non
         read_from_stub=False,
         stub_dir=str(Path(job) / "stubs"),
         role_refinement_enabled=role_refinement_enabled,
+        field_person_filter_enabled=field_person_filter_enabled,
     )
     analyzer.analyze_video()
     files = analysis_files(stem)
-    needed = ("raw_video", "players", "teams", "timeline", "role_refinement", "heatmaps", "minimap",
+    needed = ("raw_video", "players", "teams", "timeline", "role_refinement",
+              "field_person_filter", "heatmaps", "minimap",
               "pass_candidates", "pass_map", "session_report")
     missing = [key for key in needed if not files[key].exists()]
     if missing:

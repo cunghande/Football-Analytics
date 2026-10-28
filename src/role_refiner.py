@@ -1,11 +1,11 @@
 """Conservative, clip-level correction for a rare yellow/dark referee kit.
 
 The detector's player/referee class can flicker on the same tracked person. A
-yellow shirt is useful evidence only when yellow is rare in the current clip;
-otherwise it may be a field team's kit and raw model classes are retained.
+yellow shirt is useful evidence when the kit is uncommon in the clip or
+repeatedly supported on the same track; ambiguous clips retain raw classes.
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 import cv2
 import numpy as np
@@ -55,14 +55,18 @@ def refine_human_roles(frames, tracks, *, enabled=True, sample_stride=5,
         raise ValueError("Role tracks must match video frames")
 
     sample_count = yellow_count = referee_count = yellow_referee_count = 0
+    sampled_by_track = Counter()
+    kit_by_track = Counter()
     for frame_index in range(0, len(frames), sample_stride):
         for role in ("players", "referees"):
-            for info in tracks[role][frame_index].values():
+            for track_id, info in tracks[role][frame_index].items():
                 fraction = _yellow_fraction(frames[frame_index], info["bbox"])
                 if fraction is None:
                     continue
                 sample_count += 1
                 is_yellow = fraction >= yellow_threshold
+                sampled_by_track[track_id] += 1
+                kit_by_track[track_id] += is_yellow
                 yellow_count += is_yellow
                 referee_count += role == "referees"
                 yellow_referee_count += is_yellow and role == "referees"
@@ -72,11 +76,25 @@ def refine_human_roles(frames, tracks, *, enabled=True, sample_stride=5,
     yellow_referee_rate = yellow_referee_count / yellow_count if yellow_count else 0.0
     raw_referee_observations = sum(len(row) for row in tracks["referees"])
     raw_referee_track_count = len({track_id for row in tracks["referees"] for track_id in row})
+    raw_referee_by_track = Counter(track_id for row in tracks["referees"] for track_id in row)
     active = (enabled and sample_count >= 50 and yellow_count >= 8 and yellow_rate <= 0.08
               and yellow_referee_count >= 3
               and yellow_referee_rate >= max(0.10, 2.0 * raw_referee_rate))
+    supported_tracks = {
+        track_id for track_id, count in sampled_by_track.items()
+        if count >= 5 and kit_by_track[track_id] >= 3 and (
+            kit_by_track[track_id] / count >= 0.70 or
+            (raw_referee_by_track[track_id] >= 2 and kit_by_track[track_id] / count >= 0.25)
+        )
+    }
+    supported_mode = (enabled and not active and sample_count >= 50
+                      and yellow_count >= 8 and yellow_rate <= 0.12
+                      and yellow_referee_count >= 3
+                      and yellow_referee_rate >= 0.05 and bool(supported_tracks))
+    method = ("rare_yellow_kit_temporal_vote" if active else
+              "supported_yellow_referee_tracks" if supported_mode else "raw_model_roles")
     metadata = {
-        "method": "rare_yellow_kit_temporal_vote" if active else "raw_model_roles",
+        "method": method,
         "enabled": bool(enabled),
         "yellow_threshold": yellow_threshold,
         "sample_stride": sample_stride,
@@ -84,17 +102,19 @@ def refine_human_roles(frames, tracks, *, enabled=True, sample_stride=5,
         "sampled_yellow": yellow_count,
         "yellow_fraction_of_people": round(yellow_rate, 4),
         "sampled_yellow_referee_labels": yellow_referee_count,
+        "supported_track_count": len(supported_tracks) if supported_mode else 0,
         "raw_referee_observations": raw_referee_observations,
         "raw_referee_track_count": raw_referee_track_count,
         "refined_referee_observations": raw_referee_observations,
         "refined_referee_track_count": raw_referee_track_count,
         "reclassified_observations": 0,
-        "note": ("Rare yellow torso with dark shorts and referee-model support; five nearby "
+        "note": ("Yellow torso with dark shorts and referee-model support; five nearby "
                  "observations vote on player/referee role. This is a heuristic, "
                  "not a verified role label."
-                 if active else "Correction disabled or yellow/dark kit was not distinct and rare enough; raw model roles retained."),
+                 if active or supported_mode else
+                 "Correction disabled or kit evidence was insufficient; raw model roles retained."),
     }
-    if not active:
+    if not (active or supported_mode):
         return metadata
 
     observations = defaultdict(list)
@@ -109,9 +129,15 @@ def refine_human_roles(frames, tracks, *, enabled=True, sample_stride=5,
     changed = refined_referee_frames = 0
     for track_id, rows in observations.items():
         for index, (frame_index, raw_role, info, fraction) in enumerate(rows):
-            nearby = [item[3] >= yellow_threshold for item in rows[max(0, index - 2):index + 3]
-                      if item[3] is not None and abs(item[0] - frame_index) <= 3]
-            is_referee = sum(nearby) > len(nearby) / 2 if nearby else raw_role == "referees"
+            if active or track_id in supported_tracks:
+                nearby = [item[3] >= yellow_threshold for item in rows[max(0, index - 2):index + 3]
+                          if item[3] is not None and abs(item[0] - frame_index) <= 3]
+                is_referee = sum(nearby) > len(nearby) / 2 if nearby else raw_role == "referees"
+            elif (supported_mode and raw_role == "referees" and sampled_by_track[track_id] >= 5
+                  and kit_by_track[track_id] / sampled_by_track[track_id] < 0.10):
+                is_referee = False
+            else:
+                is_referee = raw_role == "referees"
             role = "referees" if is_referee else "players"
             (referees if is_referee else players)[frame_index][track_id] = info
             changed += role != raw_role

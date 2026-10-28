@@ -44,9 +44,14 @@ def _show_job(job):
     players = read_csv(files["players"])
     if files["role_refinement"].exists():
         role_method = json.loads(files["role_refinement"].read_text(encoding="utf-8"))
-        if role_method.get("method") == "rare_yellow_kit_temporal_vote":
-            st.caption("Vai trò cầu thủ/trọng tài được ổn định theo áo vàng, quần tối hiếm và 5 quan sát gần nhau; "
+        if role_method.get("method") in {"rare_yellow_kit_temporal_vote", "supported_yellow_referee_tracks"}:
+            st.caption("Vai trò cầu thủ/trọng tài được ổn định theo áo vàng, quần tối và 5 quan sát gần nhau; "
                        "đây vẫn là ước đoán, chưa đối chiếu nhãn thủ công.")
+    if files["field_person_filter"].exists():
+        field_method = json.loads(files["field_person_filter"].read_text(encoding="utf-8"))
+        if field_method.get("enabled"):
+            st.caption(f"Đã bỏ {field_method['excluded_observations']} quan sát người có dấu hiệu ở ngoài sân; "
+                       "kiểm tra video vì đây là quy tắc theo ảnh, không phải nhãn thủ công.")
     st.subheader("Gán bóng theo đội")
     st.caption(f"Đã phân nhóm màu áo: Đội 1 có {teams[0]['tracked_people']} track, "
                f"Đội 2 có {teams[1]['tracked_people']} track. "
@@ -144,6 +149,10 @@ def _video_tab():
         "Sửa nhãn trọng tài áo vàng/quần tối khi màu này hiếm (thử nghiệm)", value=True)
     st.caption("Quy tắc chỉ bật khi bộ áo vàng/quần tối chiếm phần nhỏ trong clip và model có bằng chứng trọng tài. "
                "Bỏ chọn nếu trọng tài không mặc vàng hoặc bạn muốn dùng nguyên nhãn model.")
+    field_person_filter_enabled = st.checkbox(
+        "Bỏ người ở khu kỹ thuật và ngoài sân khỏi thống kê (thử nghiệm)", value=True)
+    st.caption("Dựa vào vùng cỏ gần chân và trang phục tối ở mép dưới khung hình; "
+               "có thể bỏ nhầm cầu thủ mặc áo tối sát đường biên.")
     if st.button("Phân tích video", type="primary",
                  disabled=(uploaded is None and not local_source) or torch_error is not None):
         try:
@@ -176,7 +185,8 @@ def _video_tab():
                          f"{details['width']}×{details['height']} pixel.")
                 run_job(analysis_input, job, available[checkpoint_name], device,
                         source_name=source_name, clip_info=clip_info,
-                        role_refinement_enabled=role_refinement_enabled)
+                        role_refinement_enabled=role_refinement_enabled,
+                        field_person_filter_enabled=field_person_filter_enabled)
                 st.session_state["dashboard_job"] = str(job)
                 st.session_state["dashboard_source"] = source_name
             st.success("Đã hoàn thành phân tích.")

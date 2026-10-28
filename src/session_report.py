@@ -51,7 +51,7 @@ def _font_name():
     return font_name
 
 
-def _table(rows, widths, font, *, header=True):
+def _table(rows, widths, font, *, header=True, compact=False):
     table = Table(rows, colWidths=widths, repeatRows=1 if header else 0, hAlign="LEFT")
     rules = [
         ("FONTNAME", (0, 0), (-1, -1), font),
@@ -59,8 +59,8 @@ def _table(rows, widths, font, *, header=True):
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 0), (-1, -1), 6),
         ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 2 if compact else 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2 if compact else 5),
         ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#9CA3AF")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F5F7FA")]),
     ]
@@ -97,6 +97,8 @@ def generate_session_report(stem, destination=None, source_name=None):
     summary = _load_json(base + "_summary.json")
     role_path = Path(base + "_role_refinement.json")
     role_metadata = _load_json(role_path) if role_path.exists() else {}
+    field_path = Path(base + "_field_person_filter.json")
+    field_metadata = _load_json(field_path) if field_path.exists() else {}
     run_path = stem.parent / "dashboard_run.json"
     run = _load_json(run_path) if run_path.exists() else {}
     demo_path = stem.parent / "dataset_demo_protocol.json"
@@ -140,9 +142,12 @@ def generate_session_report(stem, destination=None, source_name=None):
     facts = [
         ["Video", Paragraph(escape(source), body)],
         ["Model", Paragraph(escape(model_name), body)],
-        ["Vai trò", ("Áo vàng/quần tối hiếm + phiếu 5 quan sát (ước đoán)"
-                     if role_metadata.get("method") == "rare_yellow_kit_temporal_vote"
+        ["Vai trò", ("Áo vàng/quần tối + phiếu 5 quan sát (ước đoán)"
+                     if role_metadata.get("method") in {"rare_yellow_kit_temporal_vote",
+                                                         "supported_yellow_referee_tracks"}
                      else "Nhãn từ model theo từng frame")],
+        ["Người ngoài sân", (f"Lọc {int(field_metadata['excluded_observations'])} quan sát theo vùng cỏ/trang phục"
+                             if field_metadata.get("enabled") else "Không lọc")],
         ["Số frame", str(frames)],
         ["FPS", _fmt(fps, 2) + (" (giả định)" if technical_demo else "")],
         ["Thời lượng", "Không xác định" if technical_demo else _fmt(frames / fps, 1) + " giây"],
@@ -190,6 +195,8 @@ def generate_session_report(stem, destination=None, source_name=None):
             + (f"Có {int(role_metadata['refined_referee_track_count'])} track từng được gán trọng tài; "
                if role_metadata else "")
             + average_note + "một người có thể sinh nhiều track ID sau khi mất dấu. "
+            + ("Bộ lọc người ngoài sân là quy tắc ảnh và có thể bỏ sót nhân viên hoặc loại nhầm "
+               "cầu thủ sát biên. " if field_metadata.get("enabled") else "")
             + ball_message +
             f" Có {short_count} track xuất hiện dưới 1 giây; chúng vẫn được giữ trong CSV "
             "nhưng không đưa vào bảng PDF." + role_note, body),
@@ -259,7 +266,7 @@ def generate_session_report(stem, destination=None, source_name=None):
     heatmap_meta = Path(base + "_heatmaps_metadata.json")
     if frames >= 10 and heatmap.exists() and heatmap_meta.exists():
         mode = _load_json(heatmap_meta).get("coordinate_mode")
-        image = Image(str(heatmap), width=160 * mm, height=43 * mm, kind="proportional")
+        image = Image(str(heatmap), width=140 * mm, height=29 * mm, kind="proportional")
         caption = ("Tọa độ sân đã hiệu chỉnh" if mode == "calibrated_field"
                    else "Tọa độ ảnh chưa hiệu chỉnh")
         story.append(KeepTogether([
@@ -278,7 +285,7 @@ def generate_session_report(stem, destination=None, source_name=None):
         story.append(Paragraph("Không có track nào được quan sát ít nhất 1 giây. "
                                "Xem CSV để kiểm tra các track ngắn.", body))
     else:
-        story.append(_table(player_data, [62, 66, 67, 75, 85, 70, 70], font))
+        story.append(_table(player_data, [62, 66, 67, 75, 85, 70, 70], font, compact=True))
     story.append(Paragraph(
         "Thấy (s) là tổng số frame quan sát chia FPS, không phải thời gian thi đấu. "
         "Dịch chuyển ảnh là tổng khoảng cách giữa các vị trí chân ở những frame liên tiếp, "

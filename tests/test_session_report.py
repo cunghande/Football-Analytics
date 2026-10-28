@@ -92,3 +92,17 @@ def test_no_ball_report_marks_possession_unavailable(tmp_path):
     assert "Không đo được" in content
     assert "Hai nhóm màu áo vẫn được phát hiện" in content
     assert "100.0%" not in content
+
+
+def test_report_records_field_filter_and_supported_role_method(tmp_path):
+    stem = _fixture(tmp_path)
+    (tmp_path / "analysis_field_person_filter.json").write_text(json.dumps({
+        "enabled": True, "excluded_observations": 12,
+    }), encoding="utf-8")
+    (tmp_path / "analysis_role_refinement.json").write_text(json.dumps({
+        "method": "supported_yellow_referee_tracks", "refined_referee_track_count": 2,
+    }), encoding="utf-8")
+    content = " ".join(_text(generate_session_report(stem)).split())
+    assert "Lọc 12 quan sát" in content
+    assert "Áo vàng/quần tối" in content
+    assert "2 track từng được gán trọng tài" in content

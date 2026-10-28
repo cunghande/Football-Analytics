@@ -4,13 +4,13 @@ import numpy as np
 from src.role_refiner import refine_human_roles
 
 
-def _clip(yellow_people=1):
+def _clip(yellow_people=1, people_count=13):
     frames = []
     tracks = {role: [] for role in ("players", "referees", "goalkeepers", "ball")}
     for frame_index in range(75):
-        frame = np.zeros((80, 310, 3), dtype=np.uint8)
+        frame = np.zeros((80, people_count * 23 + 11, 3), dtype=np.uint8)
         per_frame = {role: {} for role in tracks}
-        for track_id in range(13):
+        for track_id in range(people_count):
             x1 = 2 + track_id * 23
             bbox = [x1, 10, x1 + 18, 60]
             shirt = (0, 255, 255) if track_id < yellow_people or track_id == 4 else (
@@ -53,3 +53,11 @@ def test_user_can_leave_model_roles_unchanged():
     metadata = refine_human_roles(frames, tracks, enabled=False)
     assert metadata["method"] == "raw_model_roles"
     assert 1 in tracks["referees"][20]
+
+
+def test_supported_track_mode_handles_a_slightly_more_common_kit():
+    frames, tracks = _clip(yellow_people=2, people_count=20)
+    metadata = refine_human_roles(frames, tracks)
+    assert metadata["method"] == "supported_yellow_referee_tracks"
+    assert 0 in tracks["referees"][20]
+    assert 3 in tracks["players"][20]

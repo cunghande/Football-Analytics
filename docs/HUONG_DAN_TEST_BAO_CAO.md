@@ -1,5 +1,7 @@
 # Chạy thử báo cáo buổi tập
 
+**Kiểm tra lỗi vai trò/người ngoài sân:** sau khi cập nhật mã, dừng tiến trình Streamlit cũ, chạy lại `python -m streamlit run dashboard.py`, bật hai ô sửa nhãn trọng tài và bỏ người ngoài sân, rồi phân tích lại video. PDF cũ không tự đổi. Mở `analysis_role_refinement.json` trong ZIP: `method` phải là `rare_yellow_kit_temporal_vote` hoặc `supported_yellow_referee_tracks` nếu quy tắc thực sự chạy; `raw_model_roles` nghĩa là quy tắc không kích hoạt. `analysis_field_person_filter.json` ghi số quan sát bị loại. Xem video để phát hiện trường hợp cầu thủ thật bị lọc nhầm. [Phân tích clip 750 frame và giới hạn phương pháp](../report/PHAN_TICH_LOI_VAI_TRO_VA_NGUOI_NGOAI_SAN.md).
+
 ## Đầu ra hiện có
 
 Sau khi phân tích một video, pipeline tạo `analysis_session_report.pdf` với thông tin video, số frame/FPS, mức độ phát hiện bóng, bảng theo track ID, tổng hợp theo hai nhóm áo và heatmap theo đội. Báo cáo **chỉ mô tả chỉ số**, không chấm điểm, xếp loại hay suy ra họ tên/số áo. PDF được tạo cả khi chạy `python main.py` và khi dùng dashboard. Dashboard còn cho tải PDF riêng và ZIP gồm PDF, CSV, hình, JSON phương pháp. Dữ liệu từ mỗi lần upload ở `output/dashboard_jobs/<id>/`, không được commit lên Git.
