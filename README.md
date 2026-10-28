@@ -12,23 +12,15 @@ Hệ thống phân tích video bóng đá bằng thị giác máy tính, phát t
 
 ## Chạy dashboard trên Windows
 
-Trên máy dự án đã cấu hình Python 3.14 và GPU CUDA, mở PowerShell tại thư mục repo:
+Trên máy dự án, mở PowerShell tại thư mục repo và dùng môi trường Python đã cài dependency:
 
 ```powershell
-cd D:\Code\football-analytics
-powershell -ExecutionPolicy Bypass -File .\run_dashboard.ps1
+python -m streamlit run dashboard.py
 ```
 
 Mở `http://127.0.0.1:8501`, chọn video hoặc đường dẫn trên máy, chọn giây bắt đầu và bấm **Phân tích video**. Kiểm tra dòng thiết bị suy luận trong giao diện. Khi cập nhật mã, hãy dừng Streamlit bằng `Ctrl+C`, khởi động lại và chạy lại video để tạo báo cáo mới.
 
-Script `run_dashboard.ps1` dành cho cấu hình Windows của máy này: nó chọn Python 3.14, yêu cầu CUDA và cổng 8501 trống. Với môi trường Python đã cài đủ dependency khác, có thể chạy:
-
-```powershell
-python -m pip install -r requirements.txt
-python -m streamlit run dashboard.py
-```
-
-Lệnh trực tiếp chọn GPU CUDA nếu Python nhận được GPU; nếu không, ứng dụng dùng CPU. Hướng dẫn chi tiết, cách lấy checkpoint và xử lý lỗi nằm ở [hướng dẫn chạy và đọc báo cáo](docs/HUONG_DAN_TEST_BAO_CAO.md).
+Ứng dụng chọn GPU CUDA nếu Python nhận được GPU; nếu không, ứng dụng dùng CPU. Môi trường `venv` trên máy này đã được cài PyTorch có CUDA, vì vậy lệnh trên sử dụng GPU khi `venv` đang được kích hoạt. Hướng dẫn chi tiết, cách lấy checkpoint và xử lý lỗi nằm ở [hướng dẫn chạy và đọc báo cáo](docs/HUONG_DAN_TEST_BAO_CAO.md).
 
 ### Checkpoint
 

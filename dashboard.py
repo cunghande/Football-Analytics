@@ -117,12 +117,12 @@ def _video_tab():
     st.caption("YOLO chạy trên GPU; đọc video, theo dõi, thống kê và tạo báo cáo vẫn sử dụng CPU."
                if device == "0" else "YOLO và các bước xử lý còn lại chạy trên CPU.")
     if device == "cpu" and not torch_error:
-        st.warning("Python hiện tại không nhận GPU CUDA. Trên máy này, dừng Streamlit và chạy "
-                   "`powershell -ExecutionPolicy Bypass -File .\\run_dashboard.ps1` để dùng Python có GPU.")
+        st.warning("Python hiện tại không nhận GPU CUDA. Kiểm tra PyTorch và CUDA của môi trường "
+                   "đang chạy; sau khi khắc phục, dừng Streamlit và chạy lại "
+                   "`python -m streamlit run dashboard.py`.")
     if torch_error:
         st.error(torch_error)
-        st.caption("Nếu Windows chặn torch_python.dll trong venv, hãy thoát venv rồi chạy "
-                   "dashboard bằng Python hệ thống đã cài PyTorch.")
+        st.caption("Kiểm tra cài đặt PyTorch trong môi trường Python đang chạy dashboard.")
     input_mode = st.radio("Nguồn video", ["Tải lên từ trình duyệt", "Đường dẫn trên máy này"],
                           horizontal=True)
     uploaded = None

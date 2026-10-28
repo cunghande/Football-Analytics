@@ -4,16 +4,13 @@ Dashboard xử lý video trên máy đang mở ứng dụng. Modal chỉ dùng c
 
 ## 1. Kiểm tra model và khởi động
 
-Mở PowerShell tại `D:\Code\football-analytics`:
+Mở PowerShell tại `D:\Code\football-analytics`, sử dụng môi trường Python đã cài dependency, rồi chạy:
 
 ```powershell
-Test-Path .\runs\modal\detection_player_role_ft_full_v1\weights\best.pt
-powershell -ExecutionPolicy Bypass -File .\run_dashboard.ps1
+python -m streamlit run dashboard.py
 ```
 
-`Test-Path` cần trả `True`. Script khởi động dùng Python 3.14 có CUDA trên máy này; nếu GPU không khả dụng hoặc cổng 8501 đang được dùng, script báo lỗi. Dừng phiên Streamlit cũ bằng `Ctrl+C` rồi chạy lại khi cập nhật code.
-
-Trên máy khác đã cài Python và các gói trong `requirements.txt`, có thể chạy `python -m streamlit run dashboard.py`. Giao diện tự chọn GPU 0 nếu PyTorch nhận CUDA, nếu không sẽ chạy CPU. Cài đặt PyTorch phải phù hợp với hệ điều hành và thiết bị của máy đó.
+Giao diện tự chọn GPU 0 nếu PyTorch trong môi trường đang dùng nhận CUDA; nếu không, ứng dụng chạy CPU. Trên máy này, `venv` đã được cài bản PyTorch có CUDA. Dừng phiên Streamlit cũ bằng `Ctrl+C` rồi chạy lại khi cập nhật code hoặc thư viện.
 
 Nếu thiếu checkpoint và đã có quyền truy cập Modal Volume:
 
@@ -54,7 +51,7 @@ python -m pytest -q -m "not slow"
 ```
 
 - **Thiếu checkpoint:** kiểm tra đúng đường dẫn và tải từ Volume ở bước 1.
-- **Không thấy GPU:** chạy `python -c "import torch; print(torch.cuda.is_available())"` bằng chính Python chạy Streamlit. Nếu dùng `run_dashboard.ps1`, kiểm tra Python 3.14 và CUDA theo thông báo trong PowerShell.
+- **Không thấy GPU:** kiểm tra PyTorch trong môi trường Python đang chạy dashboard đã được cài bản CUDA tương thích với GPU và driver. Khởi động lại Streamlit sau khi thay thư viện.
 - **Không mở được video:** thử video có codec thông dụng và FPS cố định; kiểm tra đường dẫn nằm trên máy chạy dashboard.
 - **Cổng 8501 đang dùng:** dừng phiên cũ hoặc dùng `python -m streamlit run dashboard.py --server.port 8502`.
 - **Nhiều track hoặc nhầm vai trò:** đối chiếu video, vì track có thể đổi ID và detector/rule vẫn nhầm. Không suy ra số cầu thủ duy nhất từ tổng track.
